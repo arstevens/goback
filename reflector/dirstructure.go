@@ -1,48 +1,76 @@
 package reflector
 
 import (
-  "encoding/base64"
-  "strconv"
+  "path/filepath"
   "strings"
+  "fmt"
+  "os"
 )
 
 const (
   jumpBack = '|'
   nodeSep = ")"
-  paramSep = ","
 )
 
 type directoryTree struct {
   root fileNode
 }
 
-type fileNode struct {
-  hash []byte
-  children map[int]fileNode
+func (d *directoryTree) addChild(idPath []string) error {
+  parent := d.root
+  for i := 0; i < len(idPath) - 1; i++ {
+    var ok bool
+    parent, ok = parent.children[idPath[i]]
+    if !ok {
+      return fmt.Errorf("No child with id %s", idPath[i])
+    }
+  }
+
+  childId := idPath[len(idPath) - 1]
+  parent.children[childId] = *newFileNode(childId)
+  return nil
 }
 
-func newFileNode(hash []byte) *fileNode {
+type fileNode struct {
+  id string
+  children map[string]fileNode
+}
+
+func newDirectoryTree(rootPath string) *directoryTree {
+  dt := directoryTree{
+    root: *newFileNode(filepath.Base(rootPath)),
+  }
+
+  err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+    idPath := strings.Split(path, "/")
+    return dt.addChild(idPath)
+  })
+  if err != nil {
+    panic(err)
+  }
+  return &dt
+}
+
+func newFileNode(id string) *fileNode {
   return &fileNode{
-    hash: hash,
-    children: make(map[int]fileNode),
+    id: id,
+    children: make(map[string]fileNode),
   }
 }
 
-func (f fileNode) serialize(id int) string {
-  encodedHash := base64.StdEncoding.EncodeToString(f.hash)
-  encodedId := strconv.Itoa(id)
-  return encodedHash + paramSep + encodedId
+func (f fileNode) serialize() string {
+  return f.id
 }
 
 func (d directoryTree) serialize() []byte {
-  treeSerial := serializeTree(d.root, 0)
+  treeSerial := serializeTree(d.root)
   return []byte(treeSerial)
 }
 
-func serializeTree(root fileNode, id int) string {
-  serial := root.serialize(id) + ")"
-  for childId, node := range root.children {
-    serial += serializeTree(node, childId)
+func serializeTree(root fileNode) string {
+  serial := root.serialize() + nodeSep
+  for _, node := range root.children {
+    serial += serializeTree(node)
   }
   serial += string(jumpBack)
   return serial
@@ -51,22 +79,19 @@ func serializeTree(root fileNode, id int) string {
 func (d directoryTree) deserialize(data []byte) {
   tokens := tokenizeSerial(data)
   stack := make([]fileNode, 0)
-  d.root = *newFileNode([]byte{})
+  d.root = *newFileNode(tokens[0])
   parent := &d.root
 
-  for _, tk := range tokens {
+  for i := 1; i < len(tokens); i++ {
+    tk := tokens[i]
     if tk[0] == byte(jumpBack) {
       for jumpLen := len(tk); jumpLen > 0 && len(stack) > 0; jumpLen-- {
         parent = &stack[len(stack)]
         stack = stack[:len(stack)-1]
       }
     } else {
-      nodeParams := strings.Split(tk, paramSep)
-      hash, _ := base64.StdEncoding.DecodeString(nodeParams[0])
-      id, _ := strconv.Atoi(nodeParams[1])
-
-      child := newFileNode(hash)
-      (*parent).children[id] = *child
+      child := newFileNode(tk)
+      (*parent).children[tk] = *child
       stack = append(stack, *parent)
       parent = child
     }
