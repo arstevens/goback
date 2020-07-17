@@ -8,7 +8,7 @@ import (
 )
 
 const (
-  jumpBack = '|'
+  jumpBack = "|"
   nodeSep = ")"
 )
 
@@ -42,7 +42,12 @@ func newDirectoryTree(rootPath string) *directoryTree {
   }
 
   err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+    path = strings.Replace(path, rootPath, "", 1)
+    if path == "" {
+      return nil
+    }
     idPath := strings.Split(path, "/")
+    fmt.Println(idPath)
     return dt.addChild(idPath)
   })
   if err != nil {
@@ -72,11 +77,11 @@ func serializeTree(root fileNode) string {
   for _, node := range root.children {
     serial += serializeTree(node)
   }
-  serial += string(jumpBack)
+  serial += string(jumpBack) + nodeSep
   return serial
 }
 
-func (d directoryTree) deserialize(data []byte) {
+func (d *directoryTree) deserialize(data []byte) {
   tokens := tokenizeSerial(data)
   stack := make([]fileNode, 0)
   d.root = *newFileNode(tokens[0])
@@ -84,11 +89,16 @@ func (d directoryTree) deserialize(data []byte) {
 
   for i := 1; i < len(tokens); i++ {
     tk := tokens[i]
-    if tk[0] == byte(jumpBack) {
-      for jumpLen := len(tk); jumpLen > 0 && len(stack) > 0; jumpLen-- {
-        parent = &stack[len(stack)]
-        stack = stack[:len(stack)-1]
+    if tk == jumpBack {
+      /* If we've escaped out of the root directory
+      then we've already processed the last node
+      in the tree structure */
+      if len(stack) < 1 {
+        return
       }
+
+      parent = &stack[len(stack) - 1]
+      stack = stack[:len(stack) - 1]
     } else {
       child := newFileNode(tk)
       (*parent).children[tk] = *child
