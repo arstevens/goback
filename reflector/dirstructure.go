@@ -16,6 +16,9 @@ type directoryTree struct {
   root fileNode
 }
 
+/* Add and Delete child take the path down the tree
+to the node to be inserted/deleted without the root node
+included in the path */
 func (d *directoryTree) addChild(idPath []string) error {
   parent := d.root
   for i := 0; i < len(idPath) - 1; i++ {
@@ -28,6 +31,20 @@ func (d *directoryTree) addChild(idPath []string) error {
 
   childId := idPath[len(idPath) - 1]
   parent.children[childId] = *newFileNode(childId)
+  return nil
+}
+
+func (d *directoryTree) deleteChild(idPath []string) error {
+  parent := d.root
+  for i := 0; i < len(idPath) - 1; i++ {
+    var ok bool
+    parent, ok = parent.children[idPath[i]]
+    if !ok {
+      return fmt.Errorf("No child with id %s", idPath[i])
+    }
+  }
+
+  delete(parent.children, idPath[len(idPath) - 1])
   return nil
 }
 

@@ -24,6 +24,10 @@ func TestDirstruct(t *testing.T) {
     fmt.Printf("%s : %d\n", id, i)
     i++
   }
+  err := dt2.deleteChild([]string{"Hive_Whitepaper_v1.odt"})
+  if err != nil {
+    fmt.Println(err)
+  }
   fmt.Println(string(dt2.serialize()))
 
 
