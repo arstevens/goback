@@ -125,6 +125,20 @@ func (d *directoryTree) deserialize(data []byte) {
   }
 }
 
+func (d directoryTree) duplicate() directoryTree {
+  var dtree directoryTree
+  dtree.root = duplicate(d.root)
+  return dtree
+}
+
+func duplicate(root fileNode) fileNode {
+  newRoot := *newFileNode(root.id)
+  for id, node := range root.children {
+    newRoot.children[id] = duplicate(node)
+  }
+  return newRoot
+}
+
 func tokenizeSerial(data []byte) []string {
   strData := string(data)
   tokens := strings.Split(strData, nodeSep)

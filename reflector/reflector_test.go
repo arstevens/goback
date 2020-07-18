@@ -29,6 +29,18 @@ func TestDirstruct(t *testing.T) {
     fmt.Println(err)
   }
   fmt.Println(string(dt2.serialize()))
+}
 
+func TestChangeMap(t *testing.T) {
+  root := "/home/aleksandr/Workspace/Hive_Whitepaper/"
+  dt := newDirectoryTree(root)
+  cm := SHA1ChangeMap{
+    root: root,
+    cmFname: "/home/aleksandr/Workspace/goback/reflector/cmfile",
+    dirModel: *dt,
+  }
 
+  var cm2 SHA1ChangeMap
+  cm2.Sync(cm)
+  fmt.Println(string(cm2.dirModel.serialize()))
 }
