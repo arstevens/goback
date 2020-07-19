@@ -14,6 +14,9 @@ const (
   paramSep = ","
 )
 
+type fileHashFunction func(*os.File) string
+type dirHashFunction func(fileNode) string
+
 type directoryTree struct {
   root fileNode
 }
@@ -56,7 +59,7 @@ type fileNode struct {
   children map[int]fileNode
 }
 
-func newDirectoryTree(rootPath string) *directoryTree {
+func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunction) *directoryTree {
   var idCount int
   dt := directoryTree{
     root: *newFileNode(idCount, filepath.Base(rootPath), ""),
@@ -77,12 +80,24 @@ func newDirectoryTree(rootPath string) *directoryTree {
     }
     idCount++
 
+    hash := ""
+    if !info.IsDir() {
+      file, err := os.Open(path)
+      if err != nil {
+        panic(err)
+      }
+      defer file.Close()
+      hash = fHash(file)
+    }
+
     // will refactor to allow plug-n-play hash function
-    return dt.addChild(idPath, idCount, splitPath[len(splitPath) - 1], "")
+    return dt.addChild(idPath, idCount, splitPath[len(splitPath) - 1], hash)
   })
   if err != nil {
     panic(err)
   }
+  dt.root.applyHash(dHash)
+
   return &dt
 }
 
@@ -107,6 +122,15 @@ func newFileNode(id int, name string, hash string) *fileNode {
     hash: hash,
     children: make(map[int]fileNode),
   }
+}
+
+func (f *fileNode) applyHash(dHash dirHashFunction) {
+  for _, node := range f.children {
+    if node.hash == "" {
+      node.applyHash(dHash)
+    }
+  }
+  f.hash = dHash(*f)
 }
 
 func (f fileNode) serialize() string {
