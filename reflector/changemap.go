@@ -33,8 +33,6 @@ func (s SHA1ChangeMap) Serialize() error {
 }
 
 func (s *SHA1ChangeMap) Sync(cm SHA1ChangeMap) {
-  s.root = cm.root
-  s.cmFname = cm.cmFname
   s.dirModel = cm.dirModel.duplicate()
 }
 

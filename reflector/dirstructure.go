@@ -3,6 +3,7 @@ package reflector
 import (
   "path/filepath"
   "strings"
+  "strconv"
   "fmt"
   "os"
 )
@@ -10,6 +11,7 @@ import (
 const (
   jumpBack = "|"
   nodeSep = ")"
+  paramSep = ","
 )
 
 type directoryTree struct {
@@ -19,9 +21,9 @@ type directoryTree struct {
 /* Add and Delete child take the path down the tree
 to the node to be inserted/deleted without the root node
 included in the path */
-func (d *directoryTree) addChild(idPath []string) error {
+func (d *directoryTree) addChild(idPath []int, id int, name string, hash string) error {
   parent := d.root
-  for i := 0; i < len(idPath) - 1; i++ {
+  for i := 0; i < len(idPath); i++ {
     var ok bool
     parent, ok = parent.children[idPath[i]]
     if !ok {
@@ -29,12 +31,11 @@ func (d *directoryTree) addChild(idPath []string) error {
     }
   }
 
-  childId := idPath[len(idPath) - 1]
-  parent.children[childId] = *newFileNode(childId)
+  parent.children[id] = *newFileNode(id, name, hash)
   return nil
 }
 
-func (d *directoryTree) deleteChild(idPath []string) error {
+func (d *directoryTree) deleteChild(idPath []int) error {
   parent := d.root
   for i := 0; i < len(idPath) - 1; i++ {
     var ok bool
@@ -49,8 +50,10 @@ func (d *directoryTree) deleteChild(idPath []string) error {
 }
 
 type fileNode struct {
-  id string
-  children map[string]fileNode
+  id int
+  name string
+  hash string
+  children map[int]fileNode
 }
 
 func newDirectoryTree(rootPath string) *directoryTree {
@@ -73,15 +76,31 @@ func newDirectoryTree(rootPath string) *directoryTree {
   return &dt
 }
 
-func newFileNode(id string) *fileNode {
+func newFileNode(id int, name string, hash string) *fileNode {
   return &fileNode{
     id: id,
-    children: make(map[string]fileNode),
+    name: name,
+    hash: hash,
+    children: make(map[int]fileNode),
   }
 }
 
 func (f fileNode) serialize() string {
-  return f.id
+  return strconv.Itoa(f.id) + paramSep + f.name + paramSep + f.hash
+}
+
+func (f *fileNode) deserialize(data []byte) error {
+  tokens := strings.Split(string(data), paramSep)
+  if len(tokens) < 3 {
+    return fmt.Errorf("Invalid file node input. unable to deserialize")
+  }
+
+  id, err := strconv.Atoi(tokens[0])
+  if err != nil {
+    return err
+  }
+  f.id, f.name, f.hash = id, tokens[1], tokens[2]
+  return nil
 }
 
 func (d directoryTree) serialize() []byte {
@@ -101,7 +120,10 @@ func serializeTree(root fileNode) string {
 func (d *directoryTree) deserialize(data []byte) {
   tokens := tokenizeSerial(data)
   stack := make([]fileNode, 0)
-  d.root = *newFileNode(tokens[0])
+
+  var root fileNode
+  root.deserialize([]byte(tokens[0]))
+  d.root = root
   parent := &d.root
 
   for i := 1; i < len(tokens); i++ {
@@ -117,10 +139,11 @@ func (d *directoryTree) deserialize(data []byte) {
       parent = &stack[len(stack) - 1]
       stack = stack[:len(stack) - 1]
     } else {
-      child := newFileNode(tk)
-      (*parent).children[tk] = *child
+      var child fileNode
+      child.deserialize([]byte(tk))
+      (*parent).children[child.id] = child
       stack = append(stack, *parent)
-      parent = child
+      parent = &child
     }
   }
 }
@@ -132,7 +155,7 @@ func (d directoryTree) duplicate() directoryTree {
 }
 
 func duplicate(root fileNode) fileNode {
-  newRoot := *newFileNode(root.id)
+  newRoot := *newFileNode(root.id, root.name, root.hash)
   for id, node := range root.children {
     newRoot.children[id] = duplicate(node)
   }
