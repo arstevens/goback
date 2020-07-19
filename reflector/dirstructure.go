@@ -57,23 +57,47 @@ type fileNode struct {
 }
 
 func newDirectoryTree(rootPath string) *directoryTree {
+  var idCount int
   dt := directoryTree{
-    root: *newFileNode(filepath.Base(rootPath)),
+    root: *newFileNode(idCount, filepath.Base(rootPath), ""),
   }
+  idCount++
 
+  idMap := make(map[string]int)
   err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
     path = strings.Replace(path, rootPath, "", 1)
     if path == "" {
       return nil
     }
-    idPath := strings.Split(path, "/")
-    fmt.Println(idPath)
-    return dt.addChild(idPath)
+
+    splitPath := strings.Split(path, "/")
+    idPath, err := pathToIdPath(splitPath, idMap)
+    if err != nil {
+      panic(err)
+    }
+    idCount++
+
+    // will refactor to allow plug-n-play hash function
+    return dt.addChild(idPath, idCount, splitPath[len(splitPath) - 1], "")
   })
   if err != nil {
     panic(err)
   }
   return &dt
+}
+
+func pathToIdPath(splitPath []string, idMap map[string]int) ([]int, error) {
+  idPath := make([]int, 0, len(splitPath))
+
+  for i := 0; i < len(splitPath); i++ {
+    loc := splitPath[i]
+    id, ok := idMap[loc]
+    if !ok {
+      return nil, fmt.Errorf("Reference to non-existent id")
+    }
+    idPath = append(idPath, id)
+  }
+  return idPath, nil
 }
 
 func newFileNode(id int, name string, hash string) *fileNode {
