@@ -3,13 +3,26 @@ package reflector
 import (
   "testing"
   "fmt"
+  "os"
 )
 
+func fHash(file *os.File) string {
+  stat, err := file.Stat()
+  if err != nil {
+    panic(err)
+  }
+  return stat.Name() + "_fhash"
+}
+
+func dHash(f fileNode) string {
+  return f.name + "_dhash"
+}
+
 func TestDirstruct(t *testing.T) {
-  dt := newDirectoryTree("/home/aleksandr/Workspace/Hive_Whitepaper/")
+  dt := newDirectoryTree("/home/aleksandr/Workspace/Hive_Whitepaper/", fHash, dHash)
   i := 0
   for id, _ := range dt.root.children {
-    fmt.Printf("%s : %d\n", id, i)
+    fmt.Printf("%d : %d\n", id, i)
     i++
   }
 
@@ -18,19 +31,13 @@ func TestDirstruct(t *testing.T) {
 
   var dt2 directoryTree
   dt2.deserialize(serial)
-
-  i = 0
-  for id, _ := range dt2.root.children {
-    fmt.Printf("%s : %d\n", id, i)
-    i++
-  }
-  err := dt2.deleteChild([]string{"Hive_Whitepaper_v1.odt"})
+  err := dt2.deleteChild([]int{0,5})
   if err != nil {
     fmt.Println(err)
   }
   fmt.Println(string(dt2.serialize()))
 }
-
+/*
 func TestChangeMap(t *testing.T) {
   root := "/home/aleksandr/Workspace/Hive_Whitepaper/"
   dt := newDirectoryTree(root)
@@ -44,3 +51,4 @@ func TestChangeMap(t *testing.T) {
   cm2.Sync(cm)
   fmt.Println(string(cm2.dirModel.serialize()))
 }
+*/

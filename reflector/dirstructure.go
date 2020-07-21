@@ -30,7 +30,7 @@ func (d *directoryTree) addChild(idPath []int, id int, name string, hash string)
     var ok bool
     parent, ok = parent.children[idPath[i]]
     if !ok {
-      return fmt.Errorf("No child with id %s", idPath[i])
+      return fmt.Errorf("No child with id %d", idPath[i])
     }
   }
 
@@ -39,12 +39,20 @@ func (d *directoryTree) addChild(idPath []int, id int, name string, hash string)
 }
 
 func (d *directoryTree) deleteChild(idPath []int) error {
+  if len(idPath) > 0 {
+    if idPath[0] != d.root.id {
+      return fmt.Errorf("Invalid root id %d", idPath[0])
+    } else if len(idPath) == 1 {
+      d.root = *newFileNode(-1, "", "")
+    }
+  }
+
   parent := d.root
-  for i := 0; i < len(idPath) - 1; i++ {
+  for i := 1; i < len(idPath) - 1; i++ {
     var ok bool
     parent, ok = parent.children[idPath[i]]
     if !ok {
-      return fmt.Errorf("No child with id %s", idPath[i])
+      return fmt.Errorf("No child with id %d", idPath[i])
     }
   }
 
@@ -68,6 +76,7 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
 
   idMap := make(map[string]int)
   err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+    basePath := path
     path = strings.Replace(path, rootPath, "", 1)
     if path == "" {
       return nil
@@ -82,7 +91,7 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
 
     hash := ""
     if !info.IsDir() {
-      file, err := os.Open(path)
+      file, err := os.Open(basePath)
       if err != nil {
         panic(err)
       }
@@ -102,15 +111,21 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
 }
 
 func pathToIdPath(splitPath []string, idMap map[string]int) ([]int, error) {
+  fmt.Println(splitPath)
   idPath := make([]int, 0, len(splitPath))
 
   for i := 0; i < len(splitPath); i++ {
     loc := splitPath[i]
     id, ok := idMap[loc]
+    if ok {
+      idPath = append(idPath, id)
+    }
+    /*
     if !ok {
       return nil, fmt.Errorf("Reference to non-existent id")
     }
     idPath = append(idPath, id)
+    */
   }
   return idPath, nil
 }
@@ -138,6 +153,7 @@ func (f fileNode) serialize() string {
 }
 
 func (f *fileNode) deserialize(data []byte) error {
+  f.children = make(map[int]fileNode)
   tokens := strings.Split(string(data), paramSep)
   if len(tokens) < 3 {
     return fmt.Errorf("Invalid file node input. unable to deserialize")
