@@ -4,8 +4,10 @@ import (
   "io/ioutil"
 )
 
+type changeCode int
+
 const (
-  Delete = iota
+  Delete changeCode = iota
   Create
   Update
 )

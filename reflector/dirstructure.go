@@ -21,12 +21,52 @@ type directoryTree struct {
   root fileNode
 }
 
+func treeDifference(root fileNode, foreignRoot fileNode) map[changeCode][]string {
+  differences := make(map[changeCode][]string)
+
+  // Handle case of new file creation
+  for fId, fChild := range foreignRoot.children {
+    if _, ok := root.children[fId]; !ok {
+      differences[Create] = append(differences[Create], root.name + "/" + fChild.name)
+    }
+  }
+
+  // Handle cases of file deletion or name change
+  for id, child := range root.children {
+    foreignChild, ok := foreignRoot.children[id]
+    if !ok {
+      differences[Delete] = append(differences[Delete], root.name+"/"+child.name)
+    } else if child.hash != foreignChild.hash {
+      if child.name != foreignChild.name {
+        differences[Update] = append(differences[Update], root.name+"/"+child.name)
+      }
+      subDifferences := treeDifference(child, foreignChild)
+      differences = mergeDifferenceMaps(differences, subDifferences, root.name)
+    }
+  }
+  return differences
+}
+
+func mergeDifferenceMaps(highLevel map[changeCode][]string, lowLevel map[changeCode][]string, prefix string) map[changeCode][]string {
+  for code, diffs := range lowLevel {
+    for _, path := range diffs {
+      newPath := prefix + "/" + path
+      highLevel[code] = append(highLevel[code], newPath)
+    }
+  }
+  return highLevel
+}
+
 /* Add and Delete child take the path down the tree
 to the node to be inserted/deleted without the root node
 included in the path */
 func (d *directoryTree) addChild(idPath []int, id int, name string, hash string) error {
+  if len(idPath) > 0 && idPath[0] != d.root.id {
+    return fmt.Errorf("Invalid root id %d", idPath[0])
+  }
+
   parent := d.root
-  for i := 0; i < len(idPath); i++ {
+  for i := 1; i < len(idPath); i++ {
     var ok bool
     parent, ok = parent.children[idPath[i]]
     if !ok {
@@ -75,6 +115,7 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
   idCount++
 
   idMap := make(map[string]int)
+  idMap[filepath.Base(rootPath)] = 0
   err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
     basePath := path
     path = strings.Replace(path, rootPath, "", 1)
@@ -88,6 +129,7 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
       panic(err)
     }
     idCount++
+    idMap[splitPath[len(splitPath) - 1]] = idCount
 
     hash := ""
     if !info.IsDir() {
@@ -99,7 +141,6 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
       hash = fHash(file)
     }
 
-    // will refactor to allow plug-n-play hash function
     return dt.addChild(idPath, idCount, splitPath[len(splitPath) - 1], hash)
   })
   if err != nil {
