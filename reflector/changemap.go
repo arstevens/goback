@@ -7,9 +7,9 @@ import (
 type changeCode int
 
 const (
-  Delete changeCode = iota
-  Create
-  Update
+  deleteCode changeCode = iota
+  createCode
+  updateCode
 )
 
 type SHA1ChangeMap struct {
@@ -38,8 +38,6 @@ func (s *SHA1ChangeMap) Sync(cm SHA1ChangeMap) {
   s.dirModel = cm.dirModel.duplicate()
 }
 
-/*
 func (s SHA1ChangeMap) ChangeLog(cm SHA1ChangeMap) [][]string {
-
+  return treeDifference(s.dirModel.root, cm.dirModel.root)
 }
-*/

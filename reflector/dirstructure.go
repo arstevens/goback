@@ -25,13 +25,13 @@ type directoryTree struct {
 id_0/id_1/.../id_n,name where ids are the path down the tree
 and the name is the name of the new file or updated file name
 */
-func treeDifference(root fileNode, foreignRoot fileNode) map[changeCode][]string {
-  differences := make(map[changeCode][]string)
+func treeDifference(root fileNode, foreignRoot fileNode) [][]string {
+  differences := make([][]string, 3)
 
   // Handle case of new file creation
   for fId, fChild := range foreignRoot.children {
     if _, ok := root.children[fId]; !ok {
-      differences[Create] = append(differences[Create], root.name + "/" + fChild.name)
+      differences[createCode] = append(differences[createCode], root.name + "/" + fChild.name)
     }
   }
 
@@ -39,10 +39,10 @@ func treeDifference(root fileNode, foreignRoot fileNode) map[changeCode][]string
   for id, child := range root.children {
     foreignChild, ok := foreignRoot.children[id]
     if !ok {
-      differences[Delete] = append(differences[Delete], root.name+"/"+child.name)
+      differences[deleteCode] = append(differences[deleteCode], root.name+"/"+child.name)
     } else if child.hash != foreignChild.hash {
       if child.name != foreignChild.name {
-        differences[Update] = append(differences[Update], root.name+"/"+child.name + paramSep + foreignChild.name)
+        differences[updateCode] = append(differences[updateCode], root.name+"/"+child.name + paramSep + foreignChild.name)
       }
       subDifferences := treeDifference(child, foreignChild)
       differences = mergeDifferenceMaps(differences, subDifferences, root.name)
@@ -51,7 +51,7 @@ func treeDifference(root fileNode, foreignRoot fileNode) map[changeCode][]string
   return differences
 }
 
-func mergeDifferenceMaps(highLevel map[changeCode][]string, lowLevel map[changeCode][]string, prefix string) map[changeCode][]string {
+func mergeDifferenceMaps(highLevel [][]string, lowLevel [][]string, prefix string) [][]string {
   for code, diffs := range lowLevel {
     for _, path := range diffs {
       newPath := prefix + "/" + path
