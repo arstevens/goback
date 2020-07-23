@@ -27,28 +27,25 @@ and the name is the name of the new file or updated file name
 */
 func treeDifference(root fileNode, foreignRoot fileNode) map[changeCode][]string {
   differences := make(map[changeCode][]string)
-  rootId := strconv.Itoa(root.id)
 
   // Handle case of new file creation
   for fId, fChild := range foreignRoot.children {
     if _, ok := root.children[fId]; !ok {
-      sForeignId := strconv.Itoa(fId)
-      differences[Create] = append(differences[Create], rootId + "/" + sForeignId + paramSep + fChild.name)
+      differences[Create] = append(differences[Create], root.name + "/" + fChild.name)
     }
   }
 
   // Handle cases of file deletion or name change
   for id, child := range root.children {
     foreignChild, ok := foreignRoot.children[id]
-    sId := strconv.Itoa(id)
     if !ok {
-      differences[Delete] = append(differences[Delete], rootId+"/"+sId)
+      differences[Delete] = append(differences[Delete], root.name+"/"+child.name)
     } else if child.hash != foreignChild.hash {
       if child.name != foreignChild.name {
-        differences[Update] = append(differences[Update], rootId+"/"+sId + paramSep + foreignChild.name)
+        differences[Update] = append(differences[Update], root.name+"/"+child.name + paramSep + foreignChild.name)
       }
       subDifferences := treeDifference(child, foreignChild)
-      differences = mergeDifferenceMaps(differences, subDifferences, rootId)
+      differences = mergeDifferenceMaps(differences, subDifferences, root.name)
     }
   }
   return differences
