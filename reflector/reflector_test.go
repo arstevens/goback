@@ -41,6 +41,7 @@ func TestReflector(t *testing.T) {
   pr := PlainReflector{
     reflectingMap: origCM,
     directoryMap: refCM,
+
   }
 /*
   pr.Backup()
