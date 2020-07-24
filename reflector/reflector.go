@@ -19,11 +19,12 @@ type PlainReflector struct {
 
 func (p PlainReflector) Backup() {
   differences := p.reflectingMap.ChangeLog(p.directoryMap)
+  fmt.Println(differences)
 
   // Handle deletions
   deletes := differences[deleteCode]
   for _, deletion := range deletes {
-    removalPath := p.rootDirectory + "/" + deletion
+    removalPath := p.reflectingMap.root + "/" + deletion
     err := os.RemoveAll(removalPath)
     if err != nil {
       panic(err)
@@ -33,8 +34,8 @@ func (p PlainReflector) Backup() {
   // Handle Creations
   creates := differences[createCode]
   for _, creation := range creates {
-    creationPath := p.rootDirectory + "/" + creation
-    copyPath := p.reflectingDirectory + "/" + creation
+    creationPath := p.reflectingMap.root + "/" + creation
+    copyPath := p.directoryMap.root + "/" + creation
 
     stat, err := os.Lstat(copyPath)
     if err != nil {
@@ -80,9 +81,11 @@ func (p PlainReflector) Backup() {
 }
 
 func (p PlainReflector) Recover() error {
-  err := filepath.Walk(p.reflectingDirectory, func(path string, info os.FileInfo, err error) error {
-    basePath := strings.Replace(path, p.reflectingDirectory, "", 1)
-    newFilePath := p.rootDirectory + "/" + basePath
+  pathToWalk := p.reflectingMap.root + "/" + p.reflectingMap.dirModel.root.name
+  err := filepath.Walk(pathToWalk, func(path string, info os.FileInfo, err error) error {
+    fmt.Println(path)
+    basePath := strings.Replace(path, p.reflectingMap.root, "", 1)
+    newFilePath := p.directoryMap.root + "/" + basePath
     if info.IsDir() {
       return os.Mkdir(newFilePath, info.Mode())
     }
