@@ -1,6 +1,7 @@
 package reflector
 
 import (
+  fscopy "github.com/plus3it/gorecurcopy"
   "path/filepath"
   "strings"
   "fmt"
@@ -79,9 +80,9 @@ func handleCreations(creates []string, reflectingRoot string, originalRoot strin
     }
 
     if stat.IsDir() {
-      err = os.Mkdir(creationPath, stat.Mode())
+      err = fscopy.CopyDirectory(creationPath, copyPath)
       if err != nil {
-        return fmt.Errorf("Issue creating directory in handleCreations(): %v", err)
+        return fmt.Errorf("Issue copying directory in handleCreations(): %v", err)
       }
     } else {
       err = copyFile(creationPath, copyPath)
@@ -98,7 +99,7 @@ func handleUpdates(updates []string) error {
   for _, update := range updates {
     updateParts := strings.Split(update, paramSep)
     if len(updateParts) < 2 {
-      return fmt.Errorf("Update too small in handleUpdates(): ", updateParts)
+      return fmt.Errorf("Update(%s) too small in handleUpdates(): ", update)
     }
 
     oldPath := updateParts[0]

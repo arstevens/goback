@@ -3,53 +3,35 @@ package reflector
 import (
   "testing"
   "fmt"
-  "os"
 )
-func fHash(file *os.File) string {
-  stat, err := file.Stat()
+
+func TestReflector(t *testing.T) {
+  cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/Hive_Whitepaper", "/home/aleksandr/Workspace/cmfile")
   if err != nil {
     panic(err)
   }
-  return stat.Name() + "_fhash"
-}
-
-func dHash(f fileNode) string {
-  return f.name + "_dhash"
-}
-
-func TestReflector(t *testing.T) {
-  var dt directoryTree
-  dt.deserialize([]byte(`0,Hive_Whitepaper,Hive_Whitepaper_dhash)2,Hive_Whitepaper_v1.odt,Hive_Whitepaper_v1.odt_fhash)|)3,graphic_mockups,)4,honeycoin_load_change.drawio,honeycoin_load_change.drawio_fhash)|)5,honeycoin_mining_v1.drawio,honeycoin_mining_v1.drawio_fhash)|)6,load_distribution_v1.drawio,load_distribution_v1.drawio_fhash)|)7,load_pickup_v1.drawio,load_pickup_v1.drawio_fhash)|)8,topology_graph_v1.drawio,topology_graph_v1.drawio_fhash)|)|)9,graphics,)13,load_pickup_v1.png,load_pickup_v1.png_fhash)|)14,topology_graph_v1.png,topology_graph_v1.png_fhash)|)10,honeycoin_load_change.png,honeycoin_load_change.png_fhash)|)11,honeycoin_mining_v1.png,honeycoin_mining_v1.png_fhash)|)12,load_distribution_v1.png,load_distribution_v1.png_fhash)|)|)|)`))
-  dt2 := dt.duplicate()
-
-  dt2.deleteChild([]int{0, 3, 8})
-  uNode := duplicate(dt2.root.children[3])
-  uNode.hash = "dhash_hash"
-  dt2.root.children[3] = uNode
-  dt2.deleteChild([]int{0, 9, 14})
-
-  updatedNode := duplicate(dt2.root.children[9])
-  updatedNode.hash = "deleted_hash"
-  dt2.root.children[9] = updatedNode
-
-  dt2.addChild([]int{0, 3}, 22, "new.txt", "new.txt_fhash")
-
-
-  refCM := SHA1ChangeMap{root:"/home/aleksandr/Workspace", cmFname:"/home/aleksandr/Workspace/Hive_Whitepaper/rcm", dirModel:dt}
-  origCM := SHA1ChangeMap{root:"/home/aleksandr/Workspace/testzone", cmFname:"/home/aleksandr/Workspace/Hive_Whitepaper/refcm", dirModel: dt2}
-
-  pr := PlainReflector{
-    reflectingMap: origCM,
-    directoryMap: refCM,
-
-  }
-/*
-  pr.Backup()
-  */
-  err := pr.Recover()
+  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone", "/home/aleksandr/Workspace/cm2file")
   if err != nil {
-    fmt.Println(err)
+    panic(err)
   }
+  cm2.dirModel.root.children = make(map[int]fileNode)
+  cm2.dirModel.idCount = 1
+  cm2.dirModel.idMap = make(map[string]int)
+
+  changeLog := cm2.ChangeLog(*cm)
+  fmt.Println(changeLog)
+
+  dirChanges := [][]string{1:[]string{"newdir"}, 2:[]string{}}
+  fileChanges := [][]string{1:[]string{"newfile"}, 2:[]string{}}
+
+  err = cm2.Update(fileChanges, dirChanges)
+  if err != nil {
+    panic(err)
+  }
+  fmt.Println(string(cm2.dirModel.serialize()))
+  fmt.Printf("\n%t and %t", true, false)
+
+
 }
 /*
 func TestDirstruct(t *testing.T) {

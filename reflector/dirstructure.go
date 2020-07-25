@@ -21,6 +21,9 @@ type dirHashFunction func(fileNode) []byte
 
 type directoryTree struct {
   root fileNode
+  idCount int
+  idMap map[string]int
+  dirHash dirHashFunction
 }
 
 /* Generates all steps required to turn root into foreignRoot */
@@ -62,13 +65,17 @@ func mergeDifferenceMaps(highLevel [][]string, lowLevel [][]string, prefix strin
 
 /* addChild() and deleteChild() accept an idPath for the designated node
 including the root id(0) even though there can only be a single root */
-func (d *directoryTree) addChild(idPath []int, id int, name string, hash []byte, isDir bool) error {
-  if len(idPath) > 0 && idPath[0] != d.root.id {
-    return fmt.Errorf("Invalid root id %d", idPath[0])
+func (d *directoryTree) addChild(path string, hash []byte, isDir bool) error {
+  path = strings.Trim(path, "/")
+  cleanPath := strings.Split(path, "/")
+  cleanPath = cleanPath[:len(cleanPath) - 1]
+  idPath, err := pathToIdPath(cleanPath, d.idMap)
+  if err != nil {
+    return fmt.Errorf("Failed to create idPath in directoryTree.addChild(): %v", err)
   }
 
   parent := d.root
-  for i := 1; i < len(idPath); i++ {
+  for i := 0; i < len(idPath); i++ {
     var ok bool
     parent, ok = parent.children[idPath[i]]
     if !ok {
@@ -76,21 +83,26 @@ func (d *directoryTree) addChild(idPath []int, id int, name string, hash []byte,
     }
   }
 
-  parent.children[id] = *newFileNode(id, name, hash, isDir)
+  name := filepath.Base(path)
+
+  d.idCount++
+  d.idMap[path] = d.idCount
+  parent.children[d.idCount] = *newFileNode(d.idCount, name, hash, isDir)
   return nil
 }
 
-func (d *directoryTree) deleteChild(idPath []int) error {
-  if len(idPath) > 0 {
-    if idPath[0] != d.root.id {
-      return fmt.Errorf("Invalid root id %d", idPath[0])
-    } else if len(idPath) == 1 {
-      d.root = *newFileNode(-1, "", []byte{}, false)
-    }
+func (d *directoryTree) deleteChild(path string) error {
+  path = strings.Trim(path, "/")
+  idPath, err := pathToIdPath(strings.Split(path, "/"), d.idMap)
+  if err != nil {
+    return fmt.Errorf("Failed to create idPath in directoryTree.deleteChild(): %v", err)
+  }
+  if len(idPath) == 1 {
+    d.root = *newFileNode(-1, "", []byte{}, false)
   }
 
   parent := d.root
-  for i := 1; i < len(idPath) - 1; i++ {
+  for i := 0; i < len(idPath) - 1; i++ {
     var ok bool
     parent, ok = parent.children[idPath[i]]
     if !ok {
@@ -99,42 +111,63 @@ func (d *directoryTree) deleteChild(idPath []int) error {
   }
 
   delete(parent.children, idPath[len(idPath) - 1])
+  delete(d.idMap, path)
   return nil
 }
 
-func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunction) (*directoryTree, error) {
-  var idCount int
-  dt := directoryTree{
-    root: *newFileNode(idCount, filepath.Base(rootPath), []byte{}, true),
+func (d *directoryTree) renameChild(path string, name string) error {
+  path = strings.Trim(path, "/")
+  idPath, err := pathToIdPath(strings.Split(path, "/"), d.idMap)
+  if err != nil {
+    return fmt.Errorf("Failed to create idPath in directoryTree.renameChild(): %v", err)
   }
-  idCount++
 
-  idMap := make(map[string]int)
-  idMap[filepath.Base(rootPath)] = 0
+  parent := d.root
+  for i := 0; i < len(idPath) - 1; i++ {
+    var ok bool
+    parent, ok = parent.children[idPath[i]]
+    if !ok {
+      return fmt.Errorf("No child with id %d in directoryTree.renameChild(): %v", idPath[i], err)
+    }
+  }
+
+  child := parent.children[idPath[len(idPath) - 1]]
+  child.name = name
+  parent.children[idPath[len(idPath) - 1]] = child
+  return nil
+}
+
+func (d *directoryTree) hash() {
+  d.root.applyDirHash(d.dirHash)
+}
+
+func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunction) (*directoryTree, error) {
+  dt := directoryTree{
+    root: *newFileNode(0, filepath.Base(rootPath), []byte{}, true),
+    dirHash: dHash,
+    idMap: make(map[string]int),
+    idCount: 1,
+  }
+
+  dt.idMap[filepath.Base(rootPath)] = 0
   err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
     // Remove irrelavent filesystem path information
-    basePath := path
-    path = strings.Replace(path, rootPath, "", 1)
-
-    splitPath := strings.Split(path, "/")
-    idPath, err := pathToIdPath(splitPath, idMap)
-    if err != nil {
-      return fmt.Errorf("Couldn't construct id for %s path: %v", path, err)
+    relativePath := strings.Replace(path, rootPath, "", 1)
+    if relativePath == "" {
+      return nil
     }
-    idCount++
-    idMap[splitPath[len(splitPath) - 1]] = idCount
 
     hash := []byte{}
     if !info.IsDir() {
-      hash = fHash(basePath)
+      hash = fHash(path)
     }
 
-    return dt.addChild(idPath, idCount, splitPath[len(splitPath) - 1], hash, info.IsDir())
+    return dt.addChild(relativePath, hash, info.IsDir())
   })
   if err != nil {
     return nil, fmt.Errorf("Walking path failed: %v", err)
   }
-  dt.root.applyDirHash(dHash)
+  dt.hash()
 
   return &dt, nil
 }
@@ -142,16 +175,16 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
 /* Convertes a filesystem-type path into a slice of ids that can be
 used for traversing a directory tree */
 func pathToIdPath(splitPath []string, idMap map[string]int) ([]int, error) {
-  fmt.Println(splitPath)
   idPath := make([]int, 0, len(splitPath))
 
+  path := ""
   for i := 0; i < len(splitPath); i++ {
-    loc := splitPath[i]
-    id, ok := idMap[loc]
+    path += splitPath[i]
+    id, ok := idMap[path]
     if ok {
       idPath = append(idPath, id)
     } else {
-      return nil, fmt.Errorf("Reference to non-existent node (%d) in pathToIdPath()", id)
+      return nil, fmt.Errorf("Reference to non-existent node (%s) in pathToIdPath()", path)
     }
   }
   return idPath, nil
@@ -174,9 +207,14 @@ func serializeTree(root fileNode) string {
 func (d *directoryTree) deserialize(data []byte) {
   tokens := tokenizeSerial(data)
   stack := make([]fileNode, 0)
+  idMap := make(map[string]int)
+  var maxId int
 
   var root fileNode
   root.deserialize([]byte(tokens[0]))
+  idMap[root.name] = root.id
+  maxId = root.id
+
   d.root = root
   parent := &d.root
 
@@ -198,8 +236,16 @@ func (d *directoryTree) deserialize(data []byte) {
       (*parent).children[child.id] = child
       stack = append(stack, *parent)
       parent = &child
+
+      idMap[child.name] = child.id
+      if child.id > maxId {
+        maxId = child.id
+      }
     }
   }
+
+  d.idMap = idMap
+  d.idCount = maxId
 }
 
 func tokenizeSerial(data []byte) []string {
@@ -253,13 +299,14 @@ func (f *fileNode) applyDirHash(dHash dirHashFunction) {
 
 func (f fileNode) serialize() string {
   hashSerial := base64.StdEncoding.EncodeToString(f.hash)
-  return strconv.Itoa(f.id) + paramSep + f.name + paramSep + hashSerial
+  dirMark := fmt.Sprintf("%t", f.isDir)
+  return strconv.Itoa(f.id) + paramSep + f.name + paramSep + hashSerial + paramSep + dirMark
 }
 
 func (f *fileNode) deserialize(data []byte) error {
   f.children = make(map[int]fileNode)
   tokens := strings.Split(string(data), paramSep)
-  if len(tokens) < 3 {
+  if len(tokens) < 4 {
     return fmt.Errorf("Invalid filenode input in fileNode.deserialize(). unable to deserialize")
   }
 
@@ -272,6 +319,11 @@ func (f *fileNode) deserialize(data []byte) error {
   if err != nil {
     return fmt.Errorf("Unable to decode hash in fileNode.deserialize(): %v", err)
   }
+  f.isDir = false
+  if tokens[3] == "true" {
+    f.isDir = true
+  }
+  
   return nil
 }
 
