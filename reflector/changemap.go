@@ -5,6 +5,7 @@ import (
   "crypto/sha1"
   "io/ioutil"
   "strings"
+  "bytes"
   "sort"
   "fmt"
   "os"
@@ -19,6 +20,10 @@ const (
   updateCode
 )
 
+const (
+  startOfText byte = 0x02
+)
+
 /* sha1FileHash() and sha1DirHash() implement fileHashFunction and
 dirHashFunction defined along side directoryTree. These are used to
 generate a new directoryTree from a filesystem path */
@@ -30,7 +35,7 @@ func sha1FileHash(fileName string) []byte {
   defer file.Close()
 
   hash := sha1.New()
-  if _, err := io.Copy(hash, file); err != nil {
+  if _, err = io.Copy(hash, file); err != nil {
     panic(fmt.Errorf("Error copying in sha1FileHash: %v", err))
   }
   baseName := []byte(filepath.Base(fileName))
@@ -71,7 +76,7 @@ type SHA1ChangeMap struct {
 func NewSHA1ChangeMap(rootName string, serialPath string) (*SHA1ChangeMap, error) {
   dt, err := newDirectoryTree(rootName, sha1FileHash, sha1DirHash)
   if err != nil {
-    return nil, fmt.Errorf("Failed constructing sha1changemap: %v", err)
+    return nil, fmt.Errorf("Failed constructing directory tree for %s in NewS1CM(): %v", rootName, err)
   }
 
   /* Need to remove actual directory being modeled
@@ -87,18 +92,28 @@ func NewSHA1ChangeMap(rootName string, serialPath string) (*SHA1ChangeMap, error
 }
 
 func (s *SHA1ChangeMap) Deserialize(fname string) error {
-  raw, err := ioutil.ReadFile(s.cmFname)
+  raw, err := ioutil.ReadFile(fname)
   if err != nil {
-    return fmt.Errorf("Issue reading SHA1ChangeMap serial file %s: %v", s.cmFname, err)
+    return fmt.Errorf("Issue reading SHA1ChangeMap serial file %s: %v", fname, err)
   }
+  parts := bytes.Split(raw, []byte{startOfText})
 
-  s.dirModel.deserialize(raw)
+  if len(parts) < 2 {
+    return fmt.Errorf("Badly formatted serial file %s in S1CM.Deserialize(): %v", fname, err)
+  }
+  header, tree := parts[0], parts[1]
+
+  s.cmFname = fname
+  s.root = string(header)
+  s.dirModel.deserialize(tree)
   s.dirModel.dirHash = sha1DirHash
   return nil
 }
 
 func (s SHA1ChangeMap) Serialize() error {
-  raw := s.dirModel.serialize()
+  header := append([]byte(s.root), startOfText)
+  modelSerial := s.dirModel.serialize()
+  raw := append(header, modelSerial...)
   err := ioutil.WriteFile(s.cmFname, raw, 0644)
   if err != nil {
     return fmt.Errorf("Failed to serialize in SHA1ChangeMap.Serialize(): %v", err)
@@ -113,12 +128,13 @@ command for a directory means all contents should be copied */
 func (s *SHA1ChangeMap) Update(fileChanges [][]string, dirChanges [][]string) error {
   deletes := append(fileChanges[0], dirChanges[0]...)
   for _, del := range deletes {
+    fmt.Println(del)
     s.dirModel.deleteChild(del)
   }
 
   fileCreates := fileChanges[1]
   for _, create := range fileCreates {
-    fullPath := s.root + "/" + s.dirModel.root.name + "/" + create
+    fullPath := createFilesystemPath(s, create)
     hash := sha1FileHash(fullPath)
     err := s.dirModel.addChild(create, hash, false)
     if err != nil {
@@ -134,14 +150,37 @@ func (s *SHA1ChangeMap) Update(fileChanges [][]string, dirChanges [][]string) er
     }
   }
 
-  updates := append(fileChanges[2], dirChanges[2]...)
-  for _, update := range updates {
+  fileUpdates := fileChanges[2]
+  for _, update := range fileUpdates {
     parts := strings.Split(update, paramSep)
     if len(parts) < 2 {
       return fmt.Errorf("Invalid update format %s in SHA1ChangeMap.Update()", update)
     }
     path, newName := parts[0], parts[1]
-    s.dirModel.renameChild(path, newName)
+    err := s.dirModel.renameChild(path, newName)
+    if err != nil {
+      return fmt.Errorf("Unable to rename child in S1CM.Update(): %v", err)
+    }
+    newPath := changePathBase(path, newName)
+    fullPath := createFilesystemPath(s, newPath)
+    hash := sha1FileHash(fullPath)
+    err = s.dirModel.updateHash(newPath, hash)
+    if err != nil {
+      return fmt.Errorf("Unable to update hash in S1CM.Update(): %v", err)
+    }
+  }
+
+  dirUpdates := dirChanges[2]
+  for _, update := range dirUpdates {
+    parts := strings.Split(update, paramSep)
+    if len(parts) < 2 {
+      return fmt.Errorf("Invalid update format %s in SHA1ChangeMap.Update()", update)
+    }
+    path, newName := parts[0], parts[1]
+    err := s.dirModel.renameChild(path, newName)
+    if err != nil {
+      return fmt.Errorf("Unable to rename child in S1CM.Update(): %v", err)
+    }
   }
   s.dirModel.hash()
 
@@ -153,6 +192,7 @@ func (s *SHA1ChangeMap) Sync(cm SHA1ChangeMap) {
   s.dirModel = cm.dirModel.duplicate()
 }
 
+/* Creates a list of commands to turn cm s into cm */
 func (s SHA1ChangeMap) ChangeLog(cm SHA1ChangeMap) [][]string {
   return treeDifference(s.dirModel.root, cm.dirModel.root)
 }

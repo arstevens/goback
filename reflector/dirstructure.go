@@ -33,7 +33,7 @@ func treeDifference(root fileNode, foreignRoot fileNode) [][]string {
   // Handle case of new file creation
   for fId, fChild := range foreignRoot.children {
     if _, ok := root.children[fId]; !ok {
-      differences[createCode] = append(differences[createCode], root.name + "/" + fChild.name)
+      differences[createCode] = append(differences[createCode], extendPath(root.name, fChild.name))
     }
   }
 
@@ -41,10 +41,10 @@ func treeDifference(root fileNode, foreignRoot fileNode) [][]string {
   for id, child := range root.children {
     foreignChild, ok := foreignRoot.children[id]
     if !ok {
-      differences[deleteCode] = append(differences[deleteCode], root.name+"/"+child.name)
+      differences[deleteCode] = append(differences[deleteCode], extendPath(root.name, child.name))
     } else if !bytes.Equal(child.hash, foreignChild.hash) {
       if child.name != foreignChild.name {
-        differences[updateCode] = append(differences[updateCode], root.name+"/"+child.name + paramSep + foreignChild.name)
+        differences[updateCode] = append(differences[updateCode], extendPath(root.name, child.name + paramSep + foreignChild.name))
       }
       subDifferences := treeDifference(child, foreignChild)
       differences = mergeDifferenceMaps(differences, subDifferences, root.name)
@@ -56,7 +56,7 @@ func treeDifference(root fileNode, foreignRoot fileNode) [][]string {
 func mergeDifferenceMaps(highLevel [][]string, lowLevel [][]string, prefix string) [][]string {
   for code, diffs := range lowLevel {
     for _, path := range diffs {
-      newPath := prefix + "/" + path
+      newPath := extendPath(prefix, path)
       highLevel[code] = append(highLevel[code], newPath)
     }
   }
@@ -66,8 +66,7 @@ func mergeDifferenceMaps(highLevel [][]string, lowLevel [][]string, prefix strin
 /* addChild() and deleteChild() accept an idPath for the designated node
 including the root id(0) even though there can only be a single root */
 func (d *directoryTree) addChild(path string, hash []byte, isDir bool) error {
-  path = strings.Trim(path, "/")
-  cleanPath := strings.Split(path, "/")
+  cleanPath := splitPath(path)
   cleanPath = cleanPath[:len(cleanPath) - 1]
   idPath, err := pathToIdPath(cleanPath, d.idMap)
   if err != nil {
@@ -92,12 +91,11 @@ func (d *directoryTree) addChild(path string, hash []byte, isDir bool) error {
 }
 
 func (d *directoryTree) deleteChild(path string) error {
-  path = strings.Trim(path, "/")
-  idPath, err := pathToIdPath(strings.Split(path, "/"), d.idMap)
+  idPath, err := pathToIdPath(splitPath(path), d.idMap)
   if err != nil {
     return fmt.Errorf("Failed to create idPath in directoryTree.deleteChild(): %v", err)
   }
-  if len(idPath) == 1 {
+  if len(idPath) == 0 {
     d.root = *newFileNode(-1, "", []byte{}, false)
   }
 
@@ -116,8 +114,7 @@ func (d *directoryTree) deleteChild(path string) error {
 }
 
 func (d *directoryTree) renameChild(path string, name string) error {
-  path = strings.Trim(path, "/")
-  idPath, err := pathToIdPath(strings.Split(path, "/"), d.idMap)
+  idPath, err := pathToIdPath(splitPath(path), d.idMap)
   if err != nil {
     return fmt.Errorf("Failed to create idPath in directoryTree.renameChild(): %v", err)
   }
@@ -132,8 +129,34 @@ func (d *directoryTree) renameChild(path string, name string) error {
   }
 
   child := parent.children[idPath[len(idPath) - 1]]
+  id := d.idMap[path]
+  delete(d.idMap, child.name)
+  d.idMap[changePathBase(path, name)] = id
+
   child.name = name
   parent.children[idPath[len(idPath) - 1]] = child
+  return nil
+}
+
+func (d *directoryTree) updateHash(path string, hash []byte) error {
+  idPath, err := pathToIdPath(splitPath(path), d.idMap)
+  if err != nil {
+    return fmt.Errorf("Failed to create idPath in directoryTree.renameChild(): %v", err)
+  }
+
+  parent := d.root
+  for i := 0; i < len(idPath) - 1; i++ {
+    var ok bool
+    parent, ok = parent.children[idPath[i]]
+    if !ok {
+      return fmt.Errorf("No child with id %d in directoryTree.renameChild(): %v", idPath[i], err)
+    }
+  }
+
+  child := parent.children[idPath[len(idPath) - 1]]
+  child.hash = hash
+  parent.children[idPath[len(idPath) - 1]] = child
+  fmt.Println(child.id, base64.StdEncoding.EncodeToString(child.hash))
   return nil
 }
 
@@ -152,10 +175,11 @@ func newDirectoryTree(rootPath string, fHash fileHashFunction, dHash dirHashFunc
   dt.idMap[filepath.Base(rootPath)] = 0
   err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
     // Remove irrelavent filesystem path information
-    relativePath := strings.Replace(path, rootPath, "", 1)
+    relativePath := createRelativePath(path, rootPath)
     if relativePath == "" {
       return nil
     }
+    relativePath = cleanPath(relativePath)
 
     hash := []byte{}
     if !info.IsDir() {
@@ -178,8 +202,18 @@ func pathToIdPath(splitPath []string, idMap map[string]int) ([]int, error) {
   idPath := make([]int, 0, len(splitPath))
 
   path := ""
-  for i := 0; i < len(splitPath); i++ {
-    path += splitPath[i]
+  if len(splitPath) > 0 {
+    path = splitPath[0]
+    id, ok := idMap[path]
+    if ok {
+      idPath = append(idPath, id)
+    } else {
+      return nil, fmt.Errorf("Reference to non-existent node (%s) in pathToIdPath()", path)
+    }
+  }
+
+  for i := 1; i < len(splitPath); i++ {
+    path = extendPath(path, splitPath[i])
     id, ok := idMap[path]
     if ok {
       idPath = append(idPath, id)
@@ -207,13 +241,13 @@ func serializeTree(root fileNode) string {
 func (d *directoryTree) deserialize(data []byte) {
   tokens := tokenizeSerial(data)
   stack := make([]fileNode, 0)
-  idMap := make(map[string]int)
-  var maxId int
+  d.idMap = make(map[string]int)
 
   var root fileNode
   root.deserialize([]byte(tokens[0]))
-  idMap[root.name] = root.id
-  maxId = root.id
+  d.idMap[root.name] = root.id
+  d.idCount = root.id
+  var prefix string
 
   d.root = root
   parent := &d.root
@@ -230,22 +264,21 @@ func (d *directoryTree) deserialize(data []byte) {
 
       parent = &stack[len(stack) - 1]
       stack = stack[:len(stack) - 1]
+      prefix = filepath.Dir(prefix)
     } else {
       var child fileNode
       child.deserialize([]byte(tk))
       (*parent).children[child.id] = child
       stack = append(stack, *parent)
       parent = &child
+      prefix = extendPath(prefix, child.name)
 
-      idMap[child.name] = child.id
-      if child.id > maxId {
-        maxId = child.id
+      d.idMap[prefix] = child.id
+      if child.id > d.idCount {
+        d.idCount = child.id
       }
     }
   }
-
-  d.idMap = idMap
-  d.idCount = maxId
 }
 
 func tokenizeSerial(data []byte) []string {
@@ -289,9 +322,11 @@ func (f *fileNode) applyDirHash(dHash dirHashFunction) {
     return
   }
 
-  for _, node := range f.children {
-    if node.isDir {
-      node.applyDirHash(dHash)
+  for key, _ := range f.children {
+    if f.children[key].isDir {
+      child := f.children[key]
+      child.applyDirHash(dHash)
+      f.children[key] = child
     }
   }
   f.hash = dHash(*f)
@@ -323,7 +358,7 @@ func (f *fileNode) deserialize(data []byte) error {
   if tokens[3] == "true" {
     f.isDir = true
   }
-  
+
   return nil
 }
 

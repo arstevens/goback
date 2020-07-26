@@ -1,11 +1,8 @@
 package reflector
 
 import (
-  fscopy "github.com/plus3it/gorecurcopy"
-  "path/filepath"
   "strings"
   "fmt"
-  "io"
   "os"
 )
 
@@ -38,7 +35,7 @@ func (p PlainReflector) Backup() error {
   }
   // Handle Creations
   creates := differences[createCode]
-  err = handleCreations(creates, p.reflectingMap.root, p.directoryMap.root)
+  err = handleCreations(creates, &p.reflectingMap, &p.directoryMap)
   if err != nil {
     return err
   }
@@ -60,7 +57,7 @@ func (p PlainReflector) Backup() error {
 
 func handleDeletions(deletes []string, root string) error {
   for _, deletion := range deletes {
-    removalPath := root + "/" + deletion
+    removalPath := extendPath(root, deletion)
     err := os.RemoveAll(removalPath)
     if err != nil {
       return fmt.Errorf("Issue removing in handleDeletions(): %v", err)
@@ -69,10 +66,12 @@ func handleDeletions(deletes []string, root string) error {
   return nil
 }
 
-func handleCreations(creates []string, reflectingRoot string, originalRoot string) error {
+func handleCreations(creates []string, reflecting *SHA1ChangeMap, original *SHA1ChangeMap) error {
+  fmt.Println(creates)
   for _, creation := range creates {
-    creationPath := reflectingRoot + "/" + creation
-    copyPath := originalRoot + "/" + creation
+    relative := swapRootDir(creation, original)
+    creationPath := extendPath(reflecting.root, creation)
+    copyPath := extendPath(original.root, relative)
 
     stat, err := os.Lstat(copyPath)
     if err != nil {
@@ -80,12 +79,13 @@ func handleCreations(creates []string, reflectingRoot string, originalRoot strin
     }
 
     if stat.IsDir() {
-      err = fscopy.CopyDirectory(creationPath, copyPath)
+      err = copyDir(copyPath, creationPath)
       if err != nil {
         return fmt.Errorf("Issue copying directory in handleCreations(): %v", err)
       }
     } else {
-      err = copyFile(creationPath, copyPath)
+      fmt.Println(copyPath, creationPath)
+      err = copyFile(copyPath, creationPath)
       if err != nil {
         fmt.Errorf("Issue copying file in handleCreations(): %v", err)
       }
@@ -103,8 +103,7 @@ func handleUpdates(updates []string) error {
     }
 
     oldPath := updateParts[0]
-    newPathBase := strings.Split(oldPath, "/")
-    newPath := strings.Join(newPathBase[:len(newPathBase)-1], "/") + "/" + updateParts[1]
+    newPath := changePathBase(oldPath, updateParts[1])
     err := os.Rename(oldPath, newPath)
     if err != nil {
       return fmt.Errorf("Failed to rename file in handleUpdates(): %v", err)
@@ -117,29 +116,27 @@ func handleUpdates(updates []string) error {
 /* Recover() traverses the reflecting directory and copies all of the files
 over to the original directory */
 func (p PlainReflector) Recover() error {
-  pathToWalk := p.reflectingMap.root + "/" + p.reflectingMap.dirModel.root.name
-  err := filepath.Walk(pathToWalk, func(path string, info os.FileInfo, err error) error {
-    fmt.Println(path)
-    basePath := strings.Replace(path, p.reflectingMap.root, "", 1)
-    newFilePath := p.directoryMap.root + "/" + basePath
-    if info.IsDir() {
-      return os.Mkdir(newFilePath, info.Mode())
-    }
-
-    return copyFile(newFilePath, path)
-  })
+  reflectingDir := createFilesystemPath(&p.reflectingMap, "")
+  originalDir := createFilesystemPath(&p.directoryMap, "")
+  err := os.RemoveAll(originalDir)
   if err != nil {
-    return fmt.Errorf("Error walking in Recover(): %v", err)
+    return fmt.Errorf("Couldn't remove original directory in PR.Recover(): %v", err)
   }
+
+  err = copyDir(reflectingDir, originalDir)
+  if err != nil {
+    return fmt.Errorf("Couldn't copy directory contents in PR.Recover(): %v", err)
+  }
+  p.directoryMap.Sync(p.reflectingMap)
 
   err = p.directoryMap.Serialize()
   if err != nil {
-    err = fmt.Errorf("Error serializing in Recover(): %v", err)
+    return fmt.Errorf("Issue serializing in PR.Recover(): %v", err)
   }
-  return err
+  return nil
 }
-
-func copyFile(dst string, src string) error {
+/*
+func copyFile(src, dst string) error {
   buf := make([]byte, bufferSize)
 
   dstFile, err  := os.Create(dst)
@@ -168,3 +165,4 @@ func copyFile(dst string, src string) error {
   }
   return nil
 }
+*/
