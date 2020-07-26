@@ -41,7 +41,7 @@ func (p PlainReflector) Backup() error {
   }
   // Handle Updates
   updates := differences[updateCode]
-  err = handleUpdates(updates)
+  err = handleUpdates(updates, p.reflectingMap.root)
   if err != nil {
     return err
   }
@@ -95,14 +95,14 @@ func handleCreations(creates []string, reflecting *SHA1ChangeMap, original *SHA1
   return nil
 }
 
-func handleUpdates(updates []string) error {
+func handleUpdates(updates []string, root string) error {
   for _, update := range updates {
     updateParts := strings.Split(update, paramSep)
     if len(updateParts) < 2 {
       return fmt.Errorf("Update(%s) too small in handleUpdates(): ", update)
     }
 
-    oldPath := updateParts[0]
+    oldPath := extendPath(root, updateParts[0])
     newPath := changePathBase(oldPath, updateParts[1])
     err := os.Rename(oldPath, newPath)
     if err != nil {
