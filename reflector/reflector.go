@@ -135,34 +135,3 @@ func (p PlainReflector) Recover() error {
   }
   return nil
 }
-/*
-func copyFile(src, dst string) error {
-  buf := make([]byte, bufferSize)
-
-  dstFile, err  := os.Create(dst)
-  if err != nil {
-    return err
-  }
-  defer dstFile.Close()
-
-  srcFile, err := os.Open(src)
-  if err != nil {
-    return err
-  }
-  defer srcFile.Close()
-
-  for {
-    n, err := srcFile.Read(buf)
-    if err != nil && err != io.EOF {
-      return err
-    }
-    if n == 0 {
-      return nil
-    }
-    if _, err = dstFile.Write(buf[:n]); err != nil {
-      return err
-    }
-  }
-  return nil
-}
-*/

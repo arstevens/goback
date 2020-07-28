@@ -3,6 +3,7 @@ package reflector
 import (
   "testing"
 )
+/*
 func TestReflector(t *testing.T) {
   cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/Hive_Whitepaper", "/home/aleksandr/Workspace/cmfile")
   if err != nil {
