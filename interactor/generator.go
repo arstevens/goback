@@ -1,6 +1,7 @@
 package interactor
 
 import (
+  "github.com/arstevens/goback/processor"
   "fmt"
 )
 
@@ -14,7 +15,7 @@ type Generator struct {
   changeMapLoaders map[processor.ChangeMapCode]changeMapLoader
 }
 
-func (g Generator) Reflect(code processor.ReflectorCode, originalCM processor.ChangeMap, reflectingCM processor.ChangeMap) (*processor.Reflector, error) {
+func (g Generator) Reflect(code processor.ReflectorCode, originalCM processor.ChangeMap, reflectingCM processor.ChangeMap) (processor.Reflector, error) {
   reflect, ok := g.reflectorTypes[code]
   if !ok {
     return nil, fmt.Errorf("No reflector type with code %s", code)
@@ -27,7 +28,7 @@ func (g Generator) Reflect(code processor.ReflectorCode, originalCM processor.Ch
   return reflector, nil
 }
 
-func (g Generator) OpenChangeMap(code processor.ChangeMapCode, cmFile string) (*processor.ChangeMap, error) {
+func (g Generator) OpenChangeMap(code processor.ChangeMapCode, cmFile string) (processor.ChangeMap, error) {
   cmLoader, ok := g.changeMapLoaders[code]
   if !ok {
     return nil, fmt.Errorf("No change map with code %s", code)
@@ -40,7 +41,7 @@ func (g Generator) OpenChangeMap(code processor.ChangeMapCode, cmFile string) (*
   return changeMap, err
 }
 
-func (g Generator) NewChangeMap(code processor.ChangeMapCode, root string, serialPath string) (*processor.ChangeMap, error) {
+func (g Generator) NewChangeMap(code processor.ChangeMapCode, root string, serialPath string) (processor.ChangeMap, error) {
   cmCreator, ok := g.changeMapCreators[code]
   if !ok {
     return nil, fmt.Errorf("No change map with code %s", code)

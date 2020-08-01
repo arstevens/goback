@@ -102,6 +102,14 @@ func LoadSHA1ChangeMap(fname string) (processor.ChangeMap, error) {
   return &cm, err
 }
 
+func (s *SHA1ChangeMap) RootDir() string {
+  return s.root
+}
+
+func (s *SHA1ChangeMap) RootName() string {
+  return s.dirModel.root.name
+}
+
 func (s *SHA1ChangeMap) Deserialize(fname string) error {
   raw, err := ioutil.ReadFile(fname)
   if err != nil {

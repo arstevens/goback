@@ -14,4 +14,6 @@ type ChangeMap interface {
   Update([][]string, [][]string) error
   Sync(ChangeMap) error
   ChangeLog(ChangeMap) ([][]string, error)
+  RootDir() string
+  RootName() string
 }

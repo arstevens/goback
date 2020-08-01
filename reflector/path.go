@@ -4,14 +4,15 @@ import (
   "os"
   "strings"
   "path/filepath"
+  "github.com/arstevens/goback/processor"
 )
 
 func cleanPath(path string) string {
   return strings.Trim(path, string(os.PathSeparator))
 }
 
-func createFilesystemPath(s *SHA1ChangeMap, relPath string) string {
-  return filepath.Join(s.root, s.dirModel.root.name, relPath)
+func createFilesystemPath(s processor.ChangeMap, relPath string) string {
+  return filepath.Join(s.RootDir(), s.RootName(), relPath)
 }
 
 func createRelativePath(path string, root string) string {
@@ -31,9 +32,9 @@ func splitPath(path string) []string {
   return strings.Split(path, string(os.PathSeparator))
 }
 
-func swapRootDir(path string, s *SHA1ChangeMap) string {
+func swapRootDir(path string, newRoot string) string {
   parts := strings.Split(path, string(os.PathSeparator))
   base := filepath.Join(parts[1:]...)
-  newPath := filepath.Join(s.dirModel.root.name, base)
+  newPath := filepath.Join(newRoot, base)
   return newPath
 }

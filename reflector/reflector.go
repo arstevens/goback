@@ -10,12 +10,12 @@ import (
 const bufferSize = 4096
 
 type PlainReflector struct {
-  directoryMap SHA1ChangeMap
-  reflectingMap SHA1ChangeMap
+  directoryMap processor.ChangeMap
+  reflectingMap processor.ChangeMap
 }
 
 // Satisfies interactor.reflectorCreator
-func NewPlainReflector(original SHA1ChangeMap, reflecting SHA1ChangeMap) (processor.Reflector, error) {
+func NewPlainReflector(original, reflecting processor.ChangeMap) (processor.Reflector, error) {
   pr := PlainReflector{
     directoryMap: original,
     reflectingMap: reflecting,
@@ -27,32 +27,32 @@ func NewPlainReflector(original SHA1ChangeMap, reflecting SHA1ChangeMap) (proces
 reflecting map and the original map and performs the necessary
 operations to turn the reflecting directory into the original directory */
 func (p PlainReflector) Backup() error {
-  differences, err := p.reflectingMap.ChangeLog(&p.directoryMap)
+  differences, err := p.reflectingMap.ChangeLog(p.directoryMap)
   if err != nil {
     return fmt.Errorf("Couldn't backup in PR.Backup: %v", err)
   }
 
   // Handle deletions
   deletes := differences[deleteCode]
-  err = handleDeletions(deletes, p.reflectingMap.root)
+  err = handleDeletions(deletes, p.reflectingMap.RootDir())
   if err != nil {
     return err
   }
   // Handle Creations
   creates := differences[createCode]
-  err = handleCreations(creates, &p.reflectingMap, &p.directoryMap)
+  err = handleCreations(creates, p.reflectingMap, p.directoryMap)
   if err != nil {
     return err
   }
   // Handle Updates
   updates := differences[updateCode]
-  err = handleUpdates(updates, p.reflectingMap.root)
+  err = handleUpdates(updates, p.reflectingMap.RootDir())
   if err != nil {
     return err
   }
 
   // Sync change maps
-  p.reflectingMap.Sync(&p.directoryMap)
+  p.reflectingMap.Sync(p.directoryMap)
   err = p.reflectingMap.Serialize()
   if err != nil {
     return fmt.Errorf("Failed to serialize in PlainReflector.Recover(): %v", err)
@@ -71,12 +71,12 @@ func handleDeletions(deletes []string, root string) error {
   return nil
 }
 
-func handleCreations(creates []string, reflecting *SHA1ChangeMap, original *SHA1ChangeMap) error {
+func handleCreations(creates []string, reflecting processor.ChangeMap, original processor.ChangeMap) error {
   fmt.Println(creates)
   for _, creation := range creates {
-    relative := swapRootDir(creation, original)
-    creationPath := extendPath(reflecting.root, creation)
-    copyPath := extendPath(original.root, relative)
+    relative := swapRootDir(creation, original.RootName())
+    creationPath := extendPath(reflecting.RootDir(), creation)
+    copyPath := extendPath(original.RootDir(), relative)
 
     stat, err := os.Lstat(copyPath)
     if err != nil {
@@ -121,8 +121,8 @@ func handleUpdates(updates []string, root string) error {
 /* Recover() traverses the reflecting directory and copies all of the files
 over to the original directory */
 func (p PlainReflector) Recover() error {
-  reflectingDir := createFilesystemPath(&p.reflectingMap, "")
-  originalDir := createFilesystemPath(&p.directoryMap, "")
+  reflectingDir := createFilesystemPath(p.reflectingMap, "")
+  originalDir := createFilesystemPath(p.directoryMap, "")
   err := os.RemoveAll(originalDir)
   if err != nil {
     return fmt.Errorf("Couldn't remove original directory in PR.Recover(): %v", err)
@@ -132,7 +132,7 @@ func (p PlainReflector) Recover() error {
   if err != nil {
     return fmt.Errorf("Couldn't copy directory contents in PR.Recover(): %v", err)
   }
-  p.directoryMap.Sync(&p.reflectingMap)
+  p.directoryMap.Sync(p.reflectingMap)
 
   err = p.directoryMap.Serialize()
   if err != nil {
