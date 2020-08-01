@@ -1,6 +1,7 @@
 package reflector
 
 import (
+  "github.com/arstevens/goback/processor"
   "path/filepath"
   "crypto/sha1"
   "io/ioutil"
@@ -98,7 +99,7 @@ func LoadSHA1ChangeMap(fname string) (processor.ChangeMap, error) {
   if err != nil {
     return nil, fmt.Errorf("Couldn't load S1CM in LoadSHA1ChangeMap(): %v", err)
   }
-  return cm, err
+  return &cm, err
 }
 
 func (s *SHA1ChangeMap) Deserialize(fname string) error {

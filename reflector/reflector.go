@@ -1,6 +1,7 @@
 package reflector
 
 import (
+  "github.com/arstevens/goback/processor"
   "strings"
   "fmt"
   "os"
@@ -26,7 +27,7 @@ func NewPlainReflector(original SHA1ChangeMap, reflecting SHA1ChangeMap) (proces
 reflecting map and the original map and performs the necessary
 operations to turn the reflecting directory into the original directory */
 func (p PlainReflector) Backup() error {
-  differences, err := p.reflectingMap.ChangeLog(p.directoryMap)
+  differences, err := p.reflectingMap.ChangeLog(&p.directoryMap)
   if err != nil {
     return fmt.Errorf("Couldn't backup in PR.Backup: %v", err)
   }
@@ -51,7 +52,7 @@ func (p PlainReflector) Backup() error {
   }
 
   // Sync change maps
-  p.reflectingMap.Sync(p.directoryMap)
+  p.reflectingMap.Sync(&p.directoryMap)
   err = p.reflectingMap.Serialize()
   if err != nil {
     return fmt.Errorf("Failed to serialize in PlainReflector.Recover(): %v", err)
@@ -131,7 +132,7 @@ func (p PlainReflector) Recover() error {
   if err != nil {
     return fmt.Errorf("Couldn't copy directory contents in PR.Recover(): %v", err)
   }
-  p.directoryMap.Sync(p.reflectingMap)
+  p.directoryMap.Sync(&p.reflectingMap)
 
   err = p.directoryMap.Serialize()
   if err != nil {
