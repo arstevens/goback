@@ -13,23 +13,27 @@ type PlainReflector struct {
   reflectingMap SHA1ChangeMap
 }
 
-func NewPlainReflector(original SHA1ChangeMap, reflecting SHA1ChangeMap) *PlainReflector {
+// Satisfies interactor.reflectorCreator
+func NewPlainReflector(original SHA1ChangeMap, reflecting SHA1ChangeMap) (processor.Reflector, error) {
   pr := PlainReflector{
     directoryMap: original,
     reflectingMap: reflecting,
   }
-  return &pr
+  return &pr, nil
 }
 
 /* PlainReflector.Backup() finds the differences between the
 reflecting map and the original map and performs the necessary
 operations to turn the reflecting directory into the original directory */
 func (p PlainReflector) Backup() error {
-  differences := p.reflectingMap.ChangeLog(p.directoryMap)
+  differences, err := p.reflectingMap.ChangeLog(p.directoryMap)
+  if err != nil {
+    return fmt.Errorf("Couldn't backup in PR.Backup: %v", err)
+  }
 
   // Handle deletions
   deletes := differences[deleteCode]
-  err := handleDeletions(deletes, p.reflectingMap.root)
+  err = handleDeletions(deletes, p.reflectingMap.root)
   if err != nil {
     return err
   }

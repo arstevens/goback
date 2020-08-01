@@ -1,8 +1,12 @@
 package interactor
 
-type reflectorCreator func(processor.ChangeMap, processor.ChangeMap) (*processor.Reflector, error)
-type changeMapLoader func(string) (*processor.ChangeMap, error)
-type changeMapCreator func(string, string) (*processor.ChangeMap, error)
+import (
+  "fmt"
+)
+
+type reflectorCreator func(processor.ChangeMap, processor.ChangeMap) (processor.Reflector, error)
+type changeMapLoader func(string) (processor.ChangeMap, error)
+type changeMapCreator func(string, string) (processor.ChangeMap, error)
 
 type Generator struct {
   reflectorTypes map[processor.ReflectorCode]reflectorCreator
@@ -16,7 +20,7 @@ func (g Generator) Reflect(code processor.ReflectorCode, originalCM processor.Ch
     return nil, fmt.Errorf("No reflector type with code %s", code)
   }
 
-  reflector, err :=  reflect(originalCM, reflectingCM)
+  reflector, err := reflect(originalCM, reflectingCM)
   if err != nil {
     return nil, fmt.Errorf("Failed to reflect using reflector of code %s: %v", code, err)
   }

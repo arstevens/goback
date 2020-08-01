@@ -73,7 +73,8 @@ type SHA1ChangeMap struct {
   dirModel directoryTree
 }
 
-func NewSHA1ChangeMap(rootName string, serialPath string) (*SHA1ChangeMap, error) {
+// Satisfies interactor.changeMapCreator
+func NewSHA1ChangeMap(rootName string, serialPath string) (processor.ChangeMap, error) {
   dt, err := newDirectoryTree(rootName, sha1FileHash, sha1DirHash)
   if err != nil {
     return nil, fmt.Errorf("Failed constructing directory tree for %s in NewS1CM(): %v", rootName, err)
@@ -89,6 +90,15 @@ func NewSHA1ChangeMap(rootName string, serialPath string) (*SHA1ChangeMap, error
     cmFname: serialPath,
     dirModel: *dt,
   }, nil
+}
+
+func LoadSHA1ChangeMap(fname string) (processor.ChangeMap, error) {
+  var cm SHA1ChangeMap
+  err := cm.Deserialize(fname)
+  if err != nil {
+    return nil, fmt.Errorf("Couldn't load S1CM in LoadSHA1ChangeMap(): %v", err)
+  }
+  return cm, err
 }
 
 func (s *SHA1ChangeMap) Deserialize(fname string) error {
@@ -188,11 +198,20 @@ func (s *SHA1ChangeMap) Update(fileChanges [][]string, dirChanges [][]string) er
 }
 
 /* Changes the current SHA1ChangeMap into the foreign one */
-func (s *SHA1ChangeMap) Sync(cm SHA1ChangeMap) {
+func (s *SHA1ChangeMap) Sync(m processor.ChangeMap) error {
+  cm, ok := m.(*SHA1ChangeMap)
+  if !ok {
+    return fmt.Errorf("Change maps not of the same type in S1CM.Sync()")
+  }
   s.dirModel = cm.dirModel.duplicate()
+  return nil
 }
 
 /* Creates a list of commands to turn cm s into cm */
-func (s SHA1ChangeMap) ChangeLog(cm SHA1ChangeMap) [][]string {
-  return treeDifference(s.dirModel.root, cm.dirModel.root)
+func (s SHA1ChangeMap) ChangeLog(m processor.ChangeMap) ([][]string, error) {
+  cm, ok := m.(*SHA1ChangeMap)
+  if !ok {
+    return nil, fmt.Errorf("Change maps not of the same type in S1CM.ChangeLog()")
+  }
+  return treeDifference(s.dirModel.root, cm.dirModel.root), nil
 }

@@ -12,6 +12,6 @@ type ChangeMap interface {
   Serialize() error
   Deserialize(fname string) error
   Update([][]string, [][]string) error
-  Sync(ChangeMap)
-  ChangeLog(ChangeMap)
+  Sync(ChangeMap) error
+  ChangeLog(ChangeMap) ([][]string, error)
 }
