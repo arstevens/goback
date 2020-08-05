@@ -9,13 +9,13 @@ type reflectorCreator func(processor.ChangeMap, processor.ChangeMap) (processor.
 type changeMapLoader func(string) (processor.ChangeMap, error)
 type changeMapCreator func(string, string) (processor.ChangeMap, error)
 
-type Generator struct {
+type ReflectionGenerator struct {
   reflectorTypes map[processor.ReflectorCode]reflectorCreator
   changeMapCreators map[processor.ChangeMapCode]changeMapCreator
   changeMapLoaders map[processor.ChangeMapCode]changeMapLoader
 }
 
-func (g Generator) Reflect(code processor.ReflectorCode, originalCM processor.ChangeMap, reflectingCM processor.ChangeMap) (processor.Reflector, error) {
+func (g ReflectionGenerator) Reflect(code processor.ReflectorCode, originalCM processor.ChangeMap, reflectingCM processor.ChangeMap) (processor.Reflector, error) {
   reflect, ok := g.reflectorTypes[code]
   if !ok {
     return nil, fmt.Errorf("No reflector type with code %s", code)
@@ -28,7 +28,7 @@ func (g Generator) Reflect(code processor.ReflectorCode, originalCM processor.Ch
   return reflector, nil
 }
 
-func (g Generator) OpenChangeMap(code processor.ChangeMapCode, cmFile string) (processor.ChangeMap, error) {
+func (g ReflectionGenerator) OpenChangeMap(code processor.ChangeMapCode, cmFile string) (processor.ChangeMap, error) {
   cmLoader, ok := g.changeMapLoaders[code]
   if !ok {
     return nil, fmt.Errorf("No change map with code %s", code)
@@ -41,7 +41,7 @@ func (g Generator) OpenChangeMap(code processor.ChangeMapCode, cmFile string) (p
   return changeMap, err
 }
 
-func (g Generator) NewChangeMap(code processor.ChangeMapCode, root string, serialPath string) (processor.ChangeMap, error) {
+func (g ReflectionGenerator) NewChangeMap(code processor.ChangeMapCode, root string, serialPath string) (processor.ChangeMap, error) {
   cmCreator, ok := g.changeMapCreators[code]
   if !ok {
     return nil, fmt.Errorf("No change map with code %s", code)

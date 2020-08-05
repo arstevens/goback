@@ -17,7 +17,7 @@ func TestInteractor(t *testing.T) {
     "cm1":reflector.NewSHA1ChangeMap,
   }
 
-  g := Generator{
+  g := ReflectionGenerator{
     reflectorTypes:refTypes,
     changeMapCreators:cmCreator,
     changeMapLoaders:cmLoaders,

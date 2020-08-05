@@ -9,28 +9,14 @@ import (
   "io"
 )
 
-var (
-  FailCode string = "fail"
-  SuccessCode = "success"
+type CommandCode string
+
+const (
+  BackupCommand CommandCode = "bak"
+  NewBackupCommand = "n_bak"
+  RecoverCommand = "rec"
+  UpdateCommand = "upd"
 )
-
-type ReflectorCode string
-type ChangeMapCode string
-
-type Reflector interface {
-  Backup() error
-  Recover() error
-}
-
-type ChangeMap interface {
-  Serialize() error
-  Deserialize(fname string) error
-  Update([][]string, [][]string) error
-  Sync(ChangeMap) error
-  ChangeLog(ChangeMap) ([][]string, error)
-  RootDir() string
-  RootName() string
-}
 
 func CommandProcessor(port int, sysChan <-chan string) {
   netChan := make(chan string)
@@ -59,8 +45,52 @@ func CommandProcessor(port int, sysChan <-chan string) {
   }
 }
 
-func executeCommand(cmd string) error {
+/* Command format: command_code:param1,param2,... */
+func executeCommand(cmd string, gen Generator, mdb MetadataDB) error {
+  cmdComponents := strings.Split(cmd, ":")
+  if len(cmdComponents) < 2 {
+    return fmt.Errorf("Invalid command input(%s) in executeCommand()", cmd)
+  }
+  cmdType := CommandCode(cmdComponents[0])
+  params := strings.Split(cmdComponents[1], ",")
 
+  switch cmdType {
+    case BackupCommand:
+      err := backupCommand(params, gen, mdb)
+    case NewBackupCommand:
+    case RecoverCommand:
+    case UpdateCommand:
+    default:
+  }
+
+
+}
+
+func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
+  if len(params) < 1 {
+    return fmt.Errorf("Not enough params in backupCommand()")
+  }
+  backupRoot := params[0]
+  cmCode := mdb.ChangeMapType(backupRoot)
+  refCode := mdb.ReflectorType(backupRoot)
+
+  cmFile := mdb.ChangeMapFile(backupRoot)
+  fCmFile := mdb.RefChangeMapFile(backupRoot)
+
+  origCm, err := gen.OpenChangeMap(cmCode, cmFile)
+  if err != nil {
+    return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, cmCode, err)
+  }
+  refCm, err := gen.OpenChangeMap(cmCode, fCmFile)
+  if err != nil {
+    return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, cmCode, err)
+  }
+
+  reflector, err := gen.Reflect(refCode, orignCm, refCm)
+  if err != nil {
+    return fmt.Errorf("Couldn't reflect %s in backupCommand(): %v", backupRoot, err)
+  }
+  return nil
 }
 
 /* listenAndRelay() connects and communicates with anyone
