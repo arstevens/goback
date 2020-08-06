@@ -14,7 +14,7 @@ type Reflector interface {
 }
 
 type ChangeMap interface {
-  Serialize() error
+  Serialize() (string, error)
   Deserialize(fname string) error
   Update([][]string, [][]string) error
   Sync(ChangeMap) error
@@ -26,12 +26,20 @@ type ChangeMap interface {
 type Generator interface {
   Reflect(ReflectorCode, ChangeMap, ChangeMap) (Reflector, error)
   OpenChangeMap(ChangeMapCode, string) (ChangeMap, error)
-  NewChangeMap(ChangeMapCode, string, string) (ChangeMap, error)
+  NewChangeMap(ChangeMapCode, string) (ChangeMap, error)
+}
+
+type MDBRow struct {
+  OriginalRoot string
+  ReflectionRoot string
+  OriginalCM string
+  ReflectionCM string
+  ReflectionCode ReflectorCode
+  CMCode ChangeMapCode
 }
 
 type MetadataDB interface {
-  ChangeMapFile(string) string
-  RefChangeMapFile(string) string
-  ReflectorType(string) ReflectorCode
-  ChangeMapType(string) ChangeMapCode
+  GetRow(string) (MDBRow, error)
+  DeleteRow(string) (MDBRow, error)
+  InsertRow(MDBRow) error
 }

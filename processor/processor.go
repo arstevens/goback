@@ -1,6 +1,7 @@
 package processor
 
 import (
+  "strings"
   "strconv"
   "bufio"
   "log"
@@ -14,11 +15,16 @@ type CommandCode string
 const (
   BackupCommand CommandCode = "bak"
   NewBackupCommand = "n_bak"
-  RecoverCommand = "rec"
   UpdateCommand = "upd"
 )
 
-func CommandProcessor(port int, sysChan <-chan string) {
+type UpdatePackage struct {
+  OriginalRoot string
+  FileUpdates [][]string
+  DirUpdates [][]string
+}
+
+func CommandProcessor(port int, gen Generator, mdb MetadataDB, sysChan <-chan UpdatePackage) {
   netChan := make(chan string)
   go listenAndRelay(port, netChan)
 
@@ -28,14 +34,14 @@ func CommandProcessor(port int, sysChan <-chan string) {
         if !ok {
           return
         }
-        if err := executeCommand(cmd); err != nil {
-          log.Printf("Failed to execute command(%s) in CommandProcessor: %v\n", cmd, err)
+        if err := updateCommand(cmd, gen, mdb); err != nil {
+          log.Printf("Failed to execute command in CommandProcessor: %v\n", err)
         }
       case cmd, ok := <-netChan:
         if !ok {
           return
         }
-        if err := executeCommand(cmd); err != nil {
+        if err := executeCommand(cmd, gen, mdb); err != nil {
           log.Printf("Failed to execute command(%s) in CommandProcessor: %v\n", cmd, err)
           netChan<-FailCode
         } else {
@@ -53,17 +59,21 @@ func executeCommand(cmd string, gen Generator, mdb MetadataDB) error {
   }
   cmdType := CommandCode(cmdComponents[0])
   params := strings.Split(cmdComponents[1], ",")
+  var err error
 
   switch cmdType {
     case BackupCommand:
-      err := backupCommand(params, gen, mdb)
+      err = backupCommand(params, gen, mdb)
     case NewBackupCommand:
-    case RecoverCommand:
-    case UpdateCommand:
+      err = newBackupCommand(params, gen, mdb)
     default:
+      return fmt.Errorf("Unknown command(%s) in executeCommand()", cmd)
   }
 
-
+  if err != nil {
+    return fmt.Errorf("Couldn't process command in executeCommand(): %v", err)
+  }
+  return nil
 }
 
 func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
@@ -71,24 +81,95 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
     return fmt.Errorf("Not enough params in backupCommand()")
   }
   backupRoot := params[0]
-  cmCode := mdb.ChangeMapType(backupRoot)
-  refCode := mdb.ReflectorType(backupRoot)
-
-  cmFile := mdb.ChangeMapFile(backupRoot)
-  fCmFile := mdb.RefChangeMapFile(backupRoot)
-
-  origCm, err := gen.OpenChangeMap(cmCode, cmFile)
+  mdbRow, err := mdb.GetRow(backupRoot)
   if err != nil {
-    return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, cmCode, err)
-  }
-  refCm, err := gen.OpenChangeMap(cmCode, fCmFile)
-  if err != nil {
-    return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, cmCode, err)
+    return fmt.Errorf("Couldn't retrieve row in backupCommand(): %v", err)
   }
 
-  reflector, err := gen.Reflect(refCode, orignCm, refCm)
+  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM)
+  if err != nil {
+    return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
+  }
+  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM)
+  if err != nil {
+    return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
+  }
+
+  reflector, err := gen.Reflect(mdbRow.ReflectionCode, origCm, refCm)
   if err != nil {
     return fmt.Errorf("Couldn't reflect %s in backupCommand(): %v", backupRoot, err)
+  }
+  err = reflector.Backup()
+  if err != nil {
+    return fmt.Errorf("Failed to backup %s in backupCommand(): %v", backupRoot, err)
+  }
+  return nil
+}
+
+func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
+  if len(params) < 4 {
+    return fmt.Errorf("Not enough paramaters in newBackupCommand()")
+  }
+  origRoot, refRoot := params[0], params[1]
+  refCode := ReflectorCode(params[2])
+  cmCode := ChangeMapCode(params[3])
+
+  origCm, err := gen.NewChangeMap(cmCode, origRoot)
+  if err != nil {
+    return fmt.Errorf("Couldn't create new change map in newBackupCommand(): %v", err)
+  }
+  refCm, err := gen.NewChangeMap(cmCode, refRoot)
+  if err != nil {
+    return fmt.Errorf("Couldn't create new change map in newBackupCommand(): %v", err)
+  }
+
+  reflector, err := gen.Reflect(refCode, origCm, refCm)
+  if err != nil {
+    return fmt.Errorf("Couldn't reflect in newBackupCommand(): %v", err)
+  }
+  err = reflector.Backup()
+  if err != nil {
+    return fmt.Errorf("Couldn't backup in newBackupCommand(): %v", err)
+  }
+
+  origSerial, err := origCm.Serialize()
+  if err != nil {
+    return fmt.Errorf("Couldn't serialize original in newBackupCommand(): %v", err)
+  }
+  refSerial, err := refCm.Serialize()
+  if err != nil {
+    return fmt.Errorf("Couldn't serialize reflection in newBackupCommand(): %v", err)
+  }
+
+  mdbRow := MDBRow{
+    OriginalRoot: origRoot,
+    ReflectionRoot: refRoot,
+    OriginalCM: origSerial,
+    ReflectionCM: refSerial,
+    ReflectionCode: refCode,
+    CMCode: cmCode,
+  }
+  err = mdb.InsertRow(mdbRow)
+  if err != nil {
+    fmt.Errorf("Couldnt insert row in newBackupCommand(): %v", err)
+  }
+
+  return nil
+}
+
+func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
+  mdbRow, err := mdb.GetRow(pack.OriginalRoot)
+  if err != nil {
+    return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", mdbRow.OriginalRoot, err)
+  }
+  cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM)
+  if err != nil {
+    return fmt.Errorf("Couldn't open change map in updateCommand(): %v", err)
+  }
+
+  err = cm.Update(pack.FileUpdates, pack.DirUpdates)
+  if err != nil {
+    return fmt.Errorf("Couldn't update change map in updateCommand(): %v", err)
   }
   return nil
 }
