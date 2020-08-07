@@ -4,9 +4,7 @@ import (
   "github.com/arstevens/goback/processor"
   "path/filepath"
   "crypto/sha1"
-  "io/ioutil"
   "strings"
-  "bytes"
   "sort"
   "fmt"
   "os"
@@ -110,7 +108,7 @@ func (s *SHA1ChangeMap) RootName() string {
 }
 
 func (s *SHA1ChangeMap) Deserialize(raw string) error {
-  s.dirModel.deserialize(raw)
+  s.dirModel.deserialize([]byte(raw))
   s.dirModel.dirHash = sha1DirHash
   return nil
 }
