@@ -14,7 +14,7 @@ type Reflector interface {
 }
 
 type ChangeMap interface {
-  Serialize() (string, error)
+  Serialize() string
   Deserialize(fname string) error
   Update([][]string, [][]string) error
   Sync(ChangeMap) error
@@ -25,7 +25,7 @@ type ChangeMap interface {
 
 type Generator interface {
   Reflect(ReflectorCode, ChangeMap, ChangeMap) (Reflector, error)
-  OpenChangeMap(ChangeMapCode, string) (ChangeMap, error)
+  OpenChangeMap(ChangeMapCode, string, string) (ChangeMap, error)
   NewChangeMap(ChangeMapCode, string) (ChangeMap, error)
 }
 

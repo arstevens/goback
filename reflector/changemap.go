@@ -70,7 +70,6 @@ func sha1DirHash(fn fileNode) []byte {
 
 type SHA1ChangeMap struct {
   root string
-  cmFname string
   dirModel directoryTree
 }
 
@@ -88,17 +87,17 @@ func NewSHA1ChangeMap(rootName string, serialPath string) (processor.ChangeMap, 
   cmRoot := strings.Join(rootNameSplit[:len(rootNameSplit)-1], "/")
   return &SHA1ChangeMap {
     root: cmRoot,
-    cmFname: serialPath,
     dirModel: *dt,
   }, nil
 }
 
-func LoadSHA1ChangeMap(fname string) (processor.ChangeMap, error) {
+func LoadSHA1ChangeMap(serial string, root string) (processor.ChangeMap, error) {
   var cm SHA1ChangeMap
-  err := cm.Deserialize(fname)
+  err := cm.Deserialize(serial)
   if err != nil {
     return nil, fmt.Errorf("Couldn't load S1CM in LoadSHA1ChangeMap(): %v", err)
   }
+  cm.root = root
   return &cm, err
 }
 
@@ -110,34 +109,14 @@ func (s *SHA1ChangeMap) RootName() string {
   return s.dirModel.root.name
 }
 
-func (s *SHA1ChangeMap) Deserialize(fname string) error {
-  raw, err := ioutil.ReadFile(fname)
-  if err != nil {
-    return fmt.Errorf("Issue reading SHA1ChangeMap serial file %s: %v", fname, err)
-  }
-  parts := bytes.Split(raw, []byte{startOfText})
-
-  if len(parts) < 2 {
-    return fmt.Errorf("Badly formatted serial file %s in S1CM.Deserialize(): %v", fname, err)
-  }
-  header, tree := parts[0], parts[1]
-
-  s.cmFname = fname
-  s.root = string(header)
-  s.dirModel.deserialize(tree)
+func (s *SHA1ChangeMap) Deserialize(raw string) error {
+  s.dirModel.deserialize(raw)
   s.dirModel.dirHash = sha1DirHash
   return nil
 }
 
-func (s SHA1ChangeMap) Serialize() error {
-  header := append([]byte(s.root), startOfText)
-  modelSerial := s.dirModel.serialize()
-  raw := append(header, modelSerial...)
-  err := ioutil.WriteFile(s.cmFname, raw, 0644)
-  if err != nil {
-    return fmt.Errorf("Failed to serialize in SHA1ChangeMap.Serialize(): %v", err)
-  }
-  return nil
+func (s SHA1ChangeMap) Serialize() string {
+  return string(s.dirModel.serialize())
 }
 
 /* changes give to Update should be incremental. This means that
