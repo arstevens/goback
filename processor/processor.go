@@ -86,11 +86,11 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
     return fmt.Errorf("Couldn't retrieve row in backupCommand(): %v", err)
   }
 
-  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM)
+  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM, mdbRow.OriginalRoot)
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
-  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM)
+  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM, mdbRow.ReflectionRoot)
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
@@ -132,14 +132,8 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
     return fmt.Errorf("Couldn't backup in newBackupCommand(): %v", err)
   }
 
-  origSerial, err := origCm.Serialize()
-  if err != nil {
-    return fmt.Errorf("Couldn't serialize original in newBackupCommand(): %v", err)
-  }
-  refSerial, err := refCm.Serialize()
-  if err != nil {
-    return fmt.Errorf("Couldn't serialize reflection in newBackupCommand(): %v", err)
-  }
+  origSerial := origCm.Serialize()
+  refSerial := refCm.Serialize()
 
   mdbRow := MDBRow{
     OriginalRoot: origRoot,
@@ -162,7 +156,7 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", mdbRow.OriginalRoot, err)
   }
-  cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM)
+  cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM, mdbRow.OriginalRoot)
   if err != nil {
     return fmt.Errorf("Couldn't open change map in updateCommand(): %v", err)
   }
