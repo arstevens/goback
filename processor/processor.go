@@ -143,7 +143,7 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
     ReflectionCode: refCode,
     CMCode: cmCode,
   }
-  err = mdb.InsertRow(mdbRow)
+  err = mdb.InsertRow(origRoot, mdbRow)
   if err != nil {
     fmt.Errorf("Couldnt insert row in newBackupCommand(): %v", err)
   }

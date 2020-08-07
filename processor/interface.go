@@ -41,5 +41,5 @@ type MDBRow struct {
 type MetadataDB interface {
   GetRow(string) (MDBRow, error)
   DeleteRow(string) (MDBRow, error)
-  InsertRow(MDBRow) error
+  InsertRow(string, MDBRow) error
 }
