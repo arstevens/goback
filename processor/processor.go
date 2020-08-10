@@ -82,6 +82,8 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Couldn't retrieve row in backupCommand(): %v", err)
   }
+  fmt.Println(mdbRow.OriginalCM)
+  fmt.Println(mdbRow.ReflectionCM)
 
   origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM, mdbRow.OriginalRoot)
   if err != nil {
