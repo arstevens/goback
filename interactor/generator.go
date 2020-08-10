@@ -5,18 +5,18 @@ import (
   "fmt"
 )
 
-type reflectorCreator func(processor.ChangeMap, processor.ChangeMap) (processor.Reflector, error)
-type changeMapLoader func(string, string) (processor.ChangeMap, error)
-type changeMapCreator func(string) (processor.ChangeMap, error)
+type ReflectorCreator func(processor.ChangeMap, processor.ChangeMap) (processor.Reflector, error)
+type ChangeMapLoader func(string, string) (processor.ChangeMap, error)
+type ChangeMapCreator func(string) (processor.ChangeMap, error)
 
 type ReflectionGenerator struct {
-  reflectorTypes map[processor.ReflectorCode]reflectorCreator
-  changeMapCreators map[processor.ChangeMapCode]changeMapCreator
-  changeMapLoaders map[processor.ChangeMapCode]changeMapLoader
+  reflectorTypes map[processor.ReflectorCode]ReflectorCreator
+  changeMapCreators map[processor.ChangeMapCode]ChangeMapCreator
+  changeMapLoaders map[processor.ChangeMapCode]ChangeMapLoader
 }
 
-func NewReflectionGenerator(refTypes map[processor.ReflectorCode]reflectorCreator,
-  cmCreators map[processor.ChangeMapCode]changeMapCreator, cmLoaders map[processor.ChangeMapCode]changeMapLoader) ReflectionGenerator {
+func NewReflectionGenerator(refTypes map[processor.ReflectorCode]ReflectorCreator,
+  cmCreators map[processor.ChangeMapCode]ChangeMapCreator, cmLoaders map[processor.ChangeMapCode]ChangeMapLoader) ReflectionGenerator {
   return ReflectionGenerator{
       reflectorTypes: refTypes,
       changeMapCreators: cmCreators,

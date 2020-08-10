@@ -24,28 +24,25 @@ type UpdatePackage struct {
   DirUpdates [][]string
 }
 
-func CommandProcessor(port int, gen Generator, mdb MetadataDB, sysChan <-chan UpdatePackage) {
-  netChan := make(chan string)
-  go listenAndRelay(port, netChan)
-
+func CommandProcessor(gen Generator, mdb MetadataDB, comChan chan string, updateChan <-chan UpdatePackage) {
   for {
     select {
-      case cmd, ok := <-sysChan:
+      case cmd, ok := <-updateChan:
         if !ok {
           return
         }
         if err := updateCommand(cmd, gen, mdb); err != nil {
           log.Printf("Failed to execute command in CommandProcessor: %v\n", err)
         }
-      case cmd, ok := <-netChan:
+      case cmd, ok := <-comChan:
         if !ok {
           return
         }
         if err := executeCommand(cmd, gen, mdb); err != nil {
           log.Printf("Failed to execute command(%s) in CommandProcessor: %v\n", cmd, err)
-          netChan<-FailCode
+          comChan<-FailCode
         } else {
-          netChan<-SuccessCode
+          comChan<-SuccessCode
         }
     }
   }

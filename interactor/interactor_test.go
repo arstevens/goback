@@ -7,13 +7,13 @@ import (
 )
 
 func TestInteractor(t *testing.T) {
-  refTypes := map[processor.ReflectorCode]reflectorCreator{
+  refTypes := map[processor.ReflectorCode]ReflectorCreator{
     "rf1":reflector.NewPlainReflector,
   }
-  cmLoaders := map[processor.ChangeMapCode]changeMapLoader{
+  cmLoaders := map[processor.ChangeMapCode]ChangeMapLoader{
     "cm1":reflector.LoadSHA1ChangeMap,
   }
-  cmCreator := map[processor.ChangeMapCode]changeMapCreator{
+  cmCreator := map[processor.ChangeMapCode]ChangeMapCreator{
     "cm1":reflector.NewSHA1ChangeMap,
   }
 
