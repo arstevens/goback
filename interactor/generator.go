@@ -37,7 +37,9 @@ func (g ReflectionGenerator) Reflect(code processor.ReflectorCode, originalCM pr
   return reflector, nil
 }
 
-func (g ReflectionGenerator) OpenChangeMap(code processor.ChangeMapCode, serial string, root string) (processor.ChangeMap, error) {
+/* Root is the path to the directory the change map reflects without excluding
+the root of the tree directory tree */
+func (g ReflectionGenerator) OpenChangeMap(code processor.ChangeMapCode, root string, serial string) (processor.ChangeMap, error) {
   cmLoader, ok := g.changeMapLoaders[code]
   if !ok {
     return nil, fmt.Errorf("No change map with code %s", code)
@@ -50,6 +52,8 @@ func (g ReflectionGenerator) OpenChangeMap(code processor.ChangeMapCode, serial 
   return changeMap, err
 }
 
+/* Root is the path to the directory the change map will reflect including the root
+of the directory tree */
 func (g ReflectionGenerator) NewChangeMap(code processor.ChangeMapCode, root string) (processor.ChangeMap, error) {
   cmCreator, ok := g.changeMapCreators[code]
   if !ok {
