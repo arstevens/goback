@@ -1,6 +1,7 @@
 package interactor
 
 import (
+  "path/filepath"
   "github.com/arstevens/goback/processor"
   "fmt"
 )
@@ -37,15 +38,14 @@ func (g ReflectionGenerator) Reflect(code processor.ReflectorCode, originalCM pr
   return reflector, nil
 }
 
-/* Root is the path to the directory the change map reflects without excluding
-the root of the tree directory tree */
 func (g ReflectionGenerator) OpenChangeMap(code processor.ChangeMapCode, root string, serial string) (processor.ChangeMap, error) {
+  dirRoot := filepath.Dir(root)
   cmLoader, ok := g.changeMapLoaders[code]
   if !ok {
     return nil, fmt.Errorf("No change map with code %s", code)
   }
 
-  changeMap, err := cmLoader(serial, root)
+  changeMap, err := cmLoader(serial, dirRoot)
   if err != nil {
     return nil, fmt.Errorf("Failed to open change map with type %s: %v", code, err)
   }
