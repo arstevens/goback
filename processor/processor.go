@@ -82,19 +82,15 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Couldn't retrieve row in backupCommand(): %v", err)
   }
-  fmt.Println(mdbRow.OriginalCM)
-  fmt.Println(mdbRow.ReflectionCM)
 
-  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM, mdbRow.OriginalRoot)
+  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalRoot, mdbRow.OriginalCM)
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
-  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM, mdbRow.ReflectionRoot)
+  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionRoot, mdbRow.ReflectionCM)
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
-  fmt.Println(origCm.Serialize())
-  fmt.Println(refCm.Serialize())
 
   reflector, err := gen.Reflect(mdbRow.ReflectionCode, origCm, refCm)
   if err != nil {
