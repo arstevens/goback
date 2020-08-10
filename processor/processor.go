@@ -91,6 +91,8 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
+  fmt.Println(origCm.Serialize())
+  fmt.Println(refCm.Serialize())
 
   reflector, err := gen.Reflect(mdbRow.ReflectionCode, origCm, refCm)
   if err != nil {
@@ -99,6 +101,17 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
   err = reflector.Backup()
   if err != nil {
     return fmt.Errorf("Failed to backup %s in backupCommand(): %v", backupRoot, err)
+  }
+
+  mdbRow.ReflectionCM = mdbRow.OriginalCM
+  _, err = mdb.DeleteRow(mdbRow.OriginalCM)
+  if err != nil {
+    return fmt.Errorf("Failed to delete stale row in backupCommand(): %v", err)
+  }
+
+  err = mdb.InsertRow(mdbRow.OriginalRoot, mdbRow)
+  if err != nil {
+    return fmt.Errorf("Failed to insert updated row in backupCommand(): %v", err)
   }
   return nil
 }
