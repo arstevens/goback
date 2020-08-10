@@ -73,8 +73,6 @@ func handleCreations(creates []string, reflecting processor.ChangeMap, original 
     origRoot := swapRootDir(creation, original.RootName())
     creationPath := extendPath(reflecting.RootDir(), creation)
     copyPath := extendPath(original.RootDir(), origRoot)
-    fmt.Println("src:" + copyPath)
-    fmt.Println("dst:" + creationPath)
 
     stat, err := os.Lstat(copyPath)
     if err != nil {
