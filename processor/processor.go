@@ -1,6 +1,7 @@
 package processor
 
 import (
+  "path/filepath"
   "strings"
   "strconv"
   "bufio"
@@ -83,11 +84,14 @@ func backupCommand(params []string, gen Generator, mdb MetadataDB) error {
     return fmt.Errorf("Couldn't retrieve row in backupCommand(): %v", err)
   }
 
-  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalRoot, mdbRow.OriginalCM)
+  origRoot := filepath.Dir(mdbRow.OriginalRoot)
+  refRoot := filepath.Dir(mdbRow.ReflectionRoot)
+
+  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, origRoot, mdbRow.OriginalCM)
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
-  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionRoot, mdbRow.ReflectionCM)
+  refCm, err := gen.OpenChangeMap(mdbRow.CMCode, refRoot, mdbRow.ReflectionCM)
   if err != nil {
     return fmt.Errorf("Couldn't open change map at %s with code %s in backupCommand(): %v", backupRoot, mdbRow.CMCode, err)
   }
