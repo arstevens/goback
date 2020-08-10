@@ -70,8 +70,11 @@ func handleDeletions(deletes []string, root string) error {
 func handleCreations(creates []string, reflecting processor.ChangeMap, original processor.ChangeMap) error {
   fmt.Println(creates)
   for _, creation := range creates {
-    creationPath := extendPath(reflecting.RootDir(), creation)
-    copyPath := extendPath(original.RootDir(), creation)
+    creationRoot := extendPath(reflecting.RootDir(), reflecting.RootName())
+    copyRoot := extendPath(original.RootDir(), original.RootName())
+
+    creationPath := extendPath(creationRoot, creation)
+    copyPath := extendPath(copyRoot, creation)
     fmt.Println("src:" + copyPath)
     fmt.Println("dst:" + creationPath)
 
