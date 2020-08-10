@@ -15,6 +15,15 @@ type ReflectionGenerator struct {
   changeMapLoaders map[processor.ChangeMapCode]changeMapLoader
 }
 
+func NewReflectionGenerator(refTypes map[processor.ReflectorCode]reflectorCreator,
+  cmCreators map[processor.ChangeMapCode]changeMapCreator, cmLoaders map[processor.ChangeMapCode]changeMapLoader) ReflectionGenerator {
+  return ReflectionGenerator{
+      reflectorTypes: refTypes,
+      changeMapCreators: cmCreators,
+      changeMapLoaders: cmLoaders,
+  }
+}
+
 func (g ReflectionGenerator) Reflect(code processor.ReflectorCode, originalCM processor.ChangeMap, reflectingCM processor.ChangeMap) (processor.Reflector, error) {
   reflect, ok := g.reflectorTypes[code]
   if !ok {

@@ -72,7 +72,7 @@ type SHA1ChangeMap struct {
 }
 
 // Satisfies interactor.changeMapCreator
-func NewSHA1ChangeMap(rootName string, serialPath string) (processor.ChangeMap, error) {
+func NewSHA1ChangeMap(rootName string) (processor.ChangeMap, error) {
   dt, err := newDirectoryTree(rootName, sha1FileHash, sha1DirHash)
   if err != nil {
     return nil, fmt.Errorf("Failed constructing directory tree for %s in NewS1CM(): %v", rootName, err)
@@ -193,7 +193,7 @@ func (s *SHA1ChangeMap) Sync(m processor.ChangeMap) error {
   return nil
 }
 
-/* Creates a list of commands to turn cm s into cm */
+/* Creates a list of commands to turn change map s into m */
 func (s SHA1ChangeMap) ChangeLog(m processor.ChangeMap) ([][]string, error) {
   cm, ok := m.(*SHA1ChangeMap)
   if !ok {

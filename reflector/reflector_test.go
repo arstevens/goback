@@ -1,20 +1,51 @@
 package reflector
-/*
 import (
+  "fmt"
   "testing"
 )
-func TestReflector(t *testing.T) {
-  cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/Hive_Whitepaper", "/home/aleksandr/Workspace/cmfile")
+
+func TestChangeMap(t *testing.T) {
+  cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone")
   if err != nil {
     panic(err)
   }
-  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone", "/home/aleksandr/Workspace/cm2file")
+  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone2")
   if err != nil {
     panic(err)
   }
 
-  rf := NewPlainReflector(*cm2, *cm)
-  err = rf.Recover()
+  clog, err := cm.ChangeLog(cm2)
+  if err != nil {
+    panic(err)
+  }
+  fmt.Println(clog)
+
+  cm2.Deserialize(cm.Serialize())
+  fmt.Println(cm.Serialize())
+  fmt.Println(cm2.Serialize())
+  clog, err = cm.ChangeLog(cm2)
+  if err != nil {
+    panic(err)
+  }
+  fmt.Println(clog)
+}
+
+/*
+func TestReflector(t *testing.T) {
+  cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone")
+  if err != nil {
+    panic(err)
+  }
+  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone2")
+  if err != nil {
+    panic(err)
+  }
+
+  rf, err := NewPlainReflector(cm, cm2)
+  if err != nil {
+    panic(err)
+  }
+  err = rf.Backup()
   if err != nil {
     panic(err)
   }
