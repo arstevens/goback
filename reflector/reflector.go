@@ -34,7 +34,7 @@ func (p PlainReflector) Backup() error {
 
   // Handle deletions
   deletes := differences[deleteCode]
-  err = handleDeletions(deletes, p.reflectingMap.RootDir())
+  err = handleDeletions(deletes, p.reflectingMap)
   if err != nil {
     return err
   }
@@ -56,10 +56,11 @@ func (p PlainReflector) Backup() error {
   return nil
 }
 
-func handleDeletions(deletes []string, root string) error {
+func handleDeletions(deletes []string, reflecting processor.ChangeMap) error {
   fmt.Println(deletes)
   for _, deletion := range deletes {
-    removalPath := extendPath(root, deletion)
+    dir := swapRootDir(deletion, reflecting.RootName())
+    removalPath := extendPath(reflecting.RootDir(), dir)
     err := os.RemoveAll(removalPath)
     if err != nil {
       return fmt.Errorf("Issue removing in handleDeletions(): %v", err)
