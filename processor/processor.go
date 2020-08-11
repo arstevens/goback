@@ -19,6 +19,7 @@ const (
 )
 
 type UpdatePackage struct {
+  Backup bool
   OriginalRoot string
   FileUpdates [][]string
   DirUpdates [][]string
@@ -172,6 +173,22 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   err = cm.Update(pack.FileUpdates, pack.DirUpdates)
   if err != nil {
     return fmt.Errorf("Couldn't update change map in updateCommand(): %v", err)
+  }
+
+  if pack.Backup {
+    refcm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM, mdbRow.ReflectionRoot)
+    if err != nil {
+      return fmt.Errorf("Couldn't open reflecting CM in updateCommand(): %v", err)
+    }
+    ref, err := gen.Reflect(mdbRow.ReflectionCode, cm, refcm)
+    if err != nil {
+      return fmt.Errorf("Couldn't reflect in updateCommand(): %v", err)
+    }
+
+    err = ref.Backup()
+    if err != nil {
+      return fmt.Errorf("Couldn't backup in updateCommand(): %v", err)
+    }
   }
   return nil
 }

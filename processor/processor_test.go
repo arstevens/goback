@@ -29,8 +29,8 @@ func (mdb *TestMDB) InsertRow(key string, row processor.MDBRow) error {
   mdb.db[key] = row
   return nil
 }
-/*
-func TestNewBackup(t *testing.T) {
+func TestBackup(t *testing.T) {
+  // New Backup
   refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
     "sh1ref":reflector.NewPlainReflector,
   }
@@ -59,9 +59,20 @@ func TestNewBackup(t *testing.T) {
   comChan<-nback
   resp := <-comChan
   fmt.Println(resp)
-}
-*/
 
+  // Update
+  fileUpdates := [][]string{[]string{"testzone/Hive_Whitepaper_v3_Fluid.odt"},2:[]string{}}
+  update := processor.UpdatePackage{
+    Backup: true,
+    OriginalRoot: origRoot,
+    FileUpdates: fileUpdates,
+    DirUpdates: [][]string{},
+  }
+
+  updateChan<-update
+
+}
+/*
 func TestBackup(t *testing.T) {
   refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
     "sh1ref":reflector.NewPlainReflector,
@@ -105,3 +116,4 @@ func TestBackup(t *testing.T) {
   resp := <-comChan
   fmt.Println(resp)
 }
+*/
