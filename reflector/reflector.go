@@ -61,6 +61,7 @@ func handleDeletions(deletes []string, reflecting processor.ChangeMap) error {
   for _, deletion := range deletes {
     dir := swapRootDir(deletion, reflecting.RootName())
     removalPath := extendPath(reflecting.RootDir(), dir)
+    fmt.Println(removalPath)
     err := os.RemoveAll(removalPath)
     if err != nil {
       return fmt.Errorf("Issue removing in handleDeletions(): %v", err)
