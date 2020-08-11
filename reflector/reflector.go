@@ -27,6 +27,10 @@ func NewPlainReflector(original, reflecting processor.ChangeMap) (processor.Refl
 reflecting map and the original map and performs the necessary
 operations to turn the reflecting directory into the original directory */
 func (p PlainReflector) Backup() error {
+  fmt.Println("---")
+  fmt.Println(p.reflectingMap.RootName())
+  fmt.Println(p.directoryMap.RootName())
+  fmt.Println("---")
   differences, err := p.reflectingMap.ChangeLog(p.directoryMap)
   if err != nil {
     return fmt.Errorf("Couldn't backup in PR.Backup: %v", err)
