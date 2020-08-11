@@ -46,7 +46,7 @@ func TestBackup(t *testing.T) {
   mdb := TestMDB{db:make(map[string]processor.MDBRow)}
 
   origRoot := "/home/aleksandr/Workspace/testzone"
-  refRoot := "/home/aleksandr/Workspace/testzone2"
+  refRoot := "/home/aleksandr/Workspace/newenv/testzone"
   refCode := "sh1ref"
   cmCode := "cm1"
   nback := NewBackupCommand+":"+origRoot+","+refRoot+","+refCode+","+cmCode

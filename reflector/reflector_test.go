@@ -3,13 +3,13 @@ import (
   "fmt"
   "testing"
 )
-
+/*
 func TestChangeMap(t *testing.T) {
   cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone")
   if err != nil {
     panic(err)
   }
-  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone2")
+  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/newenv/testzone")
   if err != nil {
     panic(err)
   }
@@ -21,22 +21,34 @@ func TestChangeMap(t *testing.T) {
   fmt.Println(clog)
 
   cm2.Deserialize(cm.Serialize())
-  fmt.Println(cm.Serialize())
-  fmt.Println(cm2.Serialize())
+  updates := [][]string{[]string{"Hive_Whitepaper_v3_Fluid.odt"},
+  []string{"graphic_mockups/newfile"}, []string{"graphics/simple_exchange_v1.png,newname.png"}}
+  err = cm2.Update(updates, make([][]string, 3))
+  if err != nil {
+    panic(err)
+  }
   clog, err = cm.ChangeLog(cm2)
   if err != nil {
     panic(err)
   }
   fmt.Println(clog)
-}
 
+  ref, err := NewPlainReflector(cm2, cm)
+  if err != nil {
+    panic(err)
+  }
+  err = ref.Backup()
+  if err != nil {
+    panic(err)
+  }
+}
 /*
 func TestReflector(t *testing.T) {
   cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone")
   if err != nil {
     panic(err)
   }
-  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone2")
+  cm2, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/newenv/testzone")
   if err != nil {
     panic(err)
   }

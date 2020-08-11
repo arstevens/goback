@@ -63,8 +63,7 @@ func (p PlainReflector) Backup() error {
 func handleDeletions(deletes []string, reflecting processor.ChangeMap) error {
   fmt.Println(deletes)
   for _, deletion := range deletes {
-    dir := swapRootDir(deletion, reflecting.RootName())
-    removalPath := extendPath(reflecting.RootDir(), dir)
+    removalPath := extendPath(reflecting.RootDir(), deletion)
     fmt.Println(removalPath)
     err := os.RemoveAll(removalPath)
     if err != nil {
@@ -76,9 +75,8 @@ func handleDeletions(deletes []string, reflecting processor.ChangeMap) error {
 
 func handleCreations(creates []string, reflecting processor.ChangeMap, original processor.ChangeMap) error {
   for _, creation := range creates {
-    origRoot := swapRootDir(creation, original.RootName())
     creationPath := extendPath(reflecting.RootDir(), creation)
-    copyPath := extendPath(original.RootDir(), origRoot)
+    copyPath := extendPath(original.RootDir(), creation)
 
     stat, err := os.Lstat(copyPath)
     if err != nil {

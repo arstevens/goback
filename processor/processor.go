@@ -163,7 +163,7 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
 func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   mdbRow, err := mdb.GetRow(pack.OriginalRoot)
   if err != nil {
-    return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", mdbRow.OriginalRoot, err)
+    return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", pack.OriginalRoot, err)
   }
   cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalRoot, mdbRow.OriginalCM)
   if err != nil {
@@ -175,7 +175,7 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Couldn't update change map in updateCommand(): %v", err)
   }
-  fmt.Println(cm.Serialize())
+  mdbRow.OriginalCM = cm.Serialize()
 
   if pack.Backup {
     refcm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionRoot, mdbRow.ReflectionCM)
@@ -191,6 +191,15 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
     if err != nil {
       return fmt.Errorf("Couldn't backup in updateCommand(): %v", err)
     }
+    mdbRow.ReflectionCM = refcm.Serialize()
+  }
+  _, err = mdb.DeleteRow(mdbRow.OriginalRoot)
+  if err != nil {
+    return fmt.Errorf("Couldn't delete row in updateCommand(): %v", err)
+  }
+  err = mdb.InsertRow(mdbRow.OriginalRoot, mdbRow)
+  if err != nil {
+    return fmt.Errorf("Couldn't insert row in updateCommand(): %v", err)
   }
   return nil
 }
