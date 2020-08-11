@@ -2,9 +2,11 @@ package processor
 import (
   "fmt"
   "testing"
+  /*
   "time"
   "github.com/arstevens/goback/interactor"
   "github.com/arstevens/goback/reflector"
+  */
   "github.com/arstevens/goback/processor"
 )
 
@@ -30,6 +32,14 @@ func (mdb *TestMDB) InsertRow(key string, row processor.MDBRow) error {
   mdb.db[key] = row
   return nil
 }
+
+func TestLabel(t *testing.T) {
+  resp := labelToMountPoint("AleksPersonal")
+  fmt.Println(resp)
+  fmt.Println(len(resp))
+}
+/*
+
 func TestBackup(t *testing.T) {
   // New Backup
   refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
