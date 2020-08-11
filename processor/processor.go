@@ -165,7 +165,7 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", mdbRow.OriginalRoot, err)
   }
-  cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalCM, mdbRow.OriginalRoot)
+  cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalRoot, mdbRow.OriginalCM)
   if err != nil {
     return fmt.Errorf("Couldn't open change map in updateCommand(): %v", err)
   }
@@ -178,7 +178,7 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   fmt.Println(cm.Serialize())
 
   if pack.Backup {
-    refcm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM, mdbRow.ReflectionRoot)
+    refcm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionRoot, mdbRow.ReflectionCM)
     if err != nil {
       return fmt.Errorf("Couldn't open reflecting CM in updateCommand(): %v", err)
     }
