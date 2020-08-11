@@ -2,6 +2,7 @@ package processor
 import (
   "fmt"
   "testing"
+  "time"
   "github.com/arstevens/goback/interactor"
   "github.com/arstevens/goback/reflector"
   "github.com/arstevens/goback/processor"
@@ -61,15 +62,16 @@ func TestBackup(t *testing.T) {
   fmt.Println(resp)
 
   // Update
-  fileUpdates := [][]string{[]string{"testzone/Hive_Whitepaper_v3_Fluid.odt"},2:[]string{}}
+  fileUpdates := [][]string{[]string{"Hive_Whitepaper_v3_Fluid.odt"},2:[]string{}}
   update := processor.UpdatePackage{
     Backup: true,
     OriginalRoot: origRoot,
     FileUpdates: fileUpdates,
-    DirUpdates: [][]string{},
+    DirUpdates: make([][]string, 3),
   }
 
   updateChan<-update
+  time.Sleep(time.Second*5)
 
 }
 /*

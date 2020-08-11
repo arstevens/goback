@@ -169,11 +169,13 @@ func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
   if err != nil {
     return fmt.Errorf("Couldn't open change map in updateCommand(): %v", err)
   }
+  fmt.Println(mdbRow)
 
   err = cm.Update(pack.FileUpdates, pack.DirUpdates)
   if err != nil {
     return fmt.Errorf("Couldn't update change map in updateCommand(): %v", err)
   }
+  fmt.Println(cm.Serialize())
 
   if pack.Backup {
     refcm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionCM, mdbRow.ReflectionRoot)
