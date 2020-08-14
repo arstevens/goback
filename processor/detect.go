@@ -25,6 +25,15 @@ type fsDetector struct {
   closed bool
 }
 
+func newFsDetector() *fsDetector {
+  return &fsDetector{
+    watchers: make([]*fsnotify.Watcher, 0),
+    cases: make([]reflect.SelectCase, 0),
+    keymap: make(map[int]string),
+    closed: false,
+  }
+}
+
 func (f *fsDetector) Watch(root string) error {
   if f.closed {
     return fmt.Errorf("fsDetector is closed")
@@ -85,6 +94,7 @@ func (f *fsDetector) Unwatch(root string) error {
 }
 
 type fsChange struct {
+  Dir bool
   Root string
   Filepath string
   Operation ChangeCode

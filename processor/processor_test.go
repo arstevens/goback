@@ -129,3 +129,19 @@ func TestBackup(t *testing.T) {
   fmt.Println(resp)
 }
 */
+/*
+func TestDetector(t *testing.T) {
+  d := newFsDetector()
+  err := d.Watch("/home/aleksandr/Workspace/testzone")
+  if err != nil {
+    panic(err)
+  }
+
+  resp, err := d.NextChange()
+  if err != nil {
+    panic(err)
+  }
+
+  fmt.Println(resp)
+}
+*/

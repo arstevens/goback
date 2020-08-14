@@ -36,9 +36,12 @@ type MDBRow struct {
   ReflectionCM string
   ReflectionCode ReflectorCode
   CMCode ChangeMapCode
+  DriveLabel string
 }
 
 type MetadataDB interface {
+  Keys() []string
+  GetLabel(string) string
   GetRow(string) (MDBRow, error)
   DeleteRow(string) (MDBRow, error)
   InsertRow(string, MDBRow) error

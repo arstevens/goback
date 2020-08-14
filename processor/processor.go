@@ -18,21 +18,25 @@ const (
   UpdateCommand = "upd"
 )
 
-type UpdatePackage struct {
-  Backup bool
-  OriginalRoot string
-  FileUpdates [][]string
-  DirUpdates [][]string
-}
+const (
+  RenameCommand = "ren"
+  WriteCommand = "wrt"
+  DeleteCommand = "del"
+  CreateCommand = "cre"
+)
 
-func CommandProcessor(gen Generator, mdb MetadataDB, comChan chan string, updateChan <-chan UpdatePackage) {
+const (
+  dirTrue = "true"
+)
+
+func CommandProcessor(gen Generator, mdb MetadataDB, comChan chan string, updateChan <-chan string) {
   for {
     select {
       case cmd, ok := <-updateChan:
         if !ok {
           return
         }
-        if err := updateCommand(cmd, gen, mdb); err != nil {
+        if err := executeCommand(cmd, gen, mdb); err != nil {
           log.Printf("Failed to execute command in CommandProcessor: %v\n", err)
         }
       case cmd, ok := <-comChan:
@@ -64,6 +68,8 @@ func executeCommand(cmd string, gen Generator, mdb MetadataDB) error {
       err = backupCommand(params, gen, mdb)
     case NewBackupCommand:
       err = newBackupCommand(params, gen, mdb)
+    case UpdateCommand:
+      err = updateCommand(params, gen, mdb)
     default:
       return fmt.Errorf("Unknown command(%s) in executeCommand()", cmd)
   }
@@ -160,46 +166,117 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
   return nil
 }
 
-func updateCommand(pack UpdatePackage, gen Generator, mdb MetadataDB) error {
-  mdbRow, err := mdb.GetRow(pack.OriginalRoot)
-  if err != nil {
-    return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", pack.OriginalRoot, err)
+func updateCommand(params []string, gen Generator, mdb MetadataDB) error {
+  if len(params) < 3 {
+    return fmt.Errorf("Not enough params in updateCommand()")
   }
-  cm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.OriginalRoot, mdbRow.OriginalCM)
-  if err != nil {
-    return fmt.Errorf("Couldn't open change map in updateCommand(): %v", err)
-  }
-  fmt.Println(mdbRow)
 
-  err = cm.Update(pack.FileUpdates, pack.DirUpdates)
+  origRoot := params[1]
+  mdbRow, err := mdb.GetRow(origRoot)
   if err != nil {
-    return fmt.Errorf("Couldn't update change map in updateCommand(): %v", err)
+    return fmt.Errorf("Could not get row with key %s in updateCommand(): %v", origRoot, err)
   }
-  mdbRow.OriginalCM = cm.Serialize()
 
-  if pack.Backup {
-    refcm, err := gen.OpenChangeMap(mdbRow.CMCode, mdbRow.ReflectionRoot, mdbRow.ReflectionCM)
-    if err != nil {
-      return fmt.Errorf("Couldn't open reflecting CM in updateCommand(): %v", err)
-    }
-    ref, err := gen.Reflect(mdbRow.ReflectionCode, cm, refcm)
-    if err != nil {
-      return fmt.Errorf("Couldn't reflect in updateCommand(): %v", err)
-    }
+  origCm, err := gen.OpenChangeMap(mdbRow.CMCode, origRoot, mdbRow.OriginalCM)
+  if err != nil {
+    return fmt.Errorf("Failed to open change map in updateCommand(): %v", err)
+  }
 
-    err = ref.Backup()
+  switch (params[0]) {
+  case RenameCommand:
+    err = renameUpdateCommand(params[2], params[3], origCm)
     if err != nil {
-      return fmt.Errorf("Couldn't backup in updateCommand(): %v", err)
+      return fmt.Errorf("Failed to complete rename in updateCommand(): %v", err)
     }
-    mdbRow.ReflectionCM = refcm.Serialize()
+  case WriteCommand:
+    err = writeUpdateCommand(params[2], origCm)
+    if err != nil {
+      return fmt.Errorf("Failed to complete write in updateCommand(): %v", err)
+    }
+  case DeleteCommand:
+    dir := dirTrueToBool(params[3])
+    err = deleteUpdateCommand(params[2], dir, origCm)
+    if err != nil {
+      return fmt.Errorf("Failed to complete delete in updateCommand(): %v", err)
+    }
+  case CreateCommand:
+    dir := dirTrueToBool(params[3])
+    err = createUpdateCommand(params[2], dir, origCm)
+    if err != nil {
+      return fmt.Errorf("Failed to complete create in updateCommand(): %v", err)
+    }
   }
-  _, err = mdb.DeleteRow(mdbRow.OriginalRoot)
+
+  mdbRow.OriginalCM = origCm.Serialize()
+  _, err = mdb.DeleteRow(origRoot)
   if err != nil {
-    return fmt.Errorf("Couldn't delete row in updateCommand(): %v", err)
+    return fmt.Errorf("Failed to delete row in updateCommand(): %v", err)
   }
-  err = mdb.InsertRow(mdbRow.OriginalRoot, mdbRow)
+
+  err = mdb.InsertRow(origRoot, mdbRow)
   if err != nil {
-    return fmt.Errorf("Couldn't insert row in updateCommand(): %v", err)
+    return fmt.Errorf("Failed to insert row in updateCommand(): %v", err)
+  }
+  return nil
+}
+
+func dirTrueToBool(s string) bool {
+  if s == dirTrue {
+    return true
+  }
+  return false
+}
+
+func createUpdateCommand(path string, dir bool, cm ChangeMap) error {
+  fileUpdates := make([][]string, 3)
+  dirUpdates := make([][]string, 3)
+  if !dir {
+    fileUpdates = [][]string{CreateCode: []string{path}, RenameCode:[]string{}}
+  } else {
+    dirUpdates = [][]string{CreateCode: []string{path}, RenameCode:[]string{}}
+  }
+
+  err := cm.Update(fileUpdates, dirUpdates)
+  if err != nil {
+    return fmt.Errorf("Couldn't delete in deleteUpdateCommand(): %v", err)
+  }
+  return nil
+}
+
+func deleteUpdateCommand(path string, dir bool, cm ChangeMap) error {
+  fileUpdates := make([][]string, 3)
+  dirUpdates := make([][]string, 3)
+  if !dir {
+    fileUpdates = [][]string{DeleteCode: []string{path}, RenameCode:[]string{}}
+  } else {
+    dirUpdates = [][]string{DeleteCode: []string{path}, RenameCode:[]string{}}
+  }
+
+  err := cm.Update(fileUpdates, dirUpdates)
+  if err != nil {
+    return fmt.Errorf("Couldn't delete in deleteUpdateCommand(): %v", err)
+  }
+  return nil
+}
+
+func renameUpdateCommand(path string, newName string, cm ChangeMap) error {
+  fileUpdates := [][]string{RenameCode: []string{path+","+newName}}
+  dirUpdates := make([][]string, 3)
+
+  err := cm.Update(fileUpdates, dirUpdates)
+  if err != nil {
+    return fmt.Errorf("Couldn't rename in renameUpdateCommand(): %v", err)
+  }
+  return nil
+}
+
+func writeUpdateCommand(writePath string, cm ChangeMap) error {
+  fileUpdates := [][]string{DeleteCode: []string{writePath}, CreateCode: []string{writePath}, RenameCode:[]string{}}
+  dirUpdates := make([][]string, 3)
+
+  err := cm.Update(fileUpdates, dirUpdates)
+  if err != nil {
+    return fmt.Errorf("Failed to update in writeUpdateCommand(): %v", err)
   }
   return nil
 }
