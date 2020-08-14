@@ -3,12 +3,18 @@ package processor
 import (
   "os"
   "fmt"
+  "time"
   "reflect"
   "path/filepath"
   "github.com/fsnotify/fsnotify"
 )
 
 type ChangeCode int
+type TimeoutErr struct{}
+func (t *TimeoutErr) Error() string {
+  return "Experienced time out"
+}
+var NextChangeTimeout time.Duration = 0
 
 const (
   DeleteCode ChangeCode = iota
@@ -104,9 +110,17 @@ func (f *fsDetector) NextChange() (fsChange, error) {
   if f.closed {
     return fsChange{}, fmt.Errorf("fsDetector is closed")
   }
-  chosen, value, ok := reflect.Select(f.cases)
+
+  cases := f.cases
+  if NextChangeTimeout > 0 {
+    timeoutCase := reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(time.After(NextChangeTimeout))}
+    cases = append(cases, timeoutCase)
+  }
+  chosen, value, ok := reflect.Select(cases)
   if !ok {
     return fsChange{}, fmt.Errorf("Failed to select value in fsDetector.NextChange()")
+  } else if chosen == len(f.cases) {
+    return fsChange{}, &TimeoutErr{}
   }
   event := value.Interface().(fsnotify.Event)
   var operation ChangeCode

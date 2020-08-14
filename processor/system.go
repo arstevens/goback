@@ -11,23 +11,37 @@ const (
 )
 
 func MonitorSystem(mdb MetadataDB, c chan<- string) {
+  NextChangeTimeout = time.Second
   watching := make(map[string]bool)
+  mounted := make(map[string]string)
   detector := newFsDetector()
   pollForNewBackups(mdb, watching, detector)
 
   for {
+    // Check for any changes to backup points
     change, err := detector.NextChange()
-    if err != nil {
+    _, isTimeout := err.(*TimeoutErr)
+    if !isTimeout && err != nil {
       panic(err)
     }
-    cmd := fsChangeToCommand(change)
-    c<-cmd
+    if !isTimeout {
+      cmd := fsChangeToCommand(change)
+      c<-cmd
+    }
 
+    // Check for any new backups created
+    pollForNewBackups(mdb, watching, detector)
 
+    // Check if backup reflections are mounted
+    newlyMounted := pollForNewDrives(mdb, mounted)
+    for _, origRoot := range newlyMounted {
+      backupCmd := string(BackupCommand)+":"+origRoot
+      c<-backupCmd
+    }
+
+    // Wait to check again
     <-time.After(PollSpeed)
   }
-
-
 }
 
 func pollForNewBackups(mdb MetadataDB, watching map[string]bool, detector *fsDetector) {
