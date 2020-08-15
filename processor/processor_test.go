@@ -1,6 +1,7 @@
 package processor
 import (
   "fmt"
+  "time"
   "testing"
   "github.com/arstevens/goback/interactor"
   "github.com/arstevens/goback/reflector"
@@ -63,6 +64,7 @@ func TestProcessor(t *testing.T) {
   comChan<-bakCmd
   resp := <-comChan
   fmt.Println(resp)
+  <-time.After(time.Minute)
 }
 /*
 func TestLabel(t *testing.T) {

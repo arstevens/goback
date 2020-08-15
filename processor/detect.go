@@ -4,6 +4,7 @@ import (
   "os"
   "fmt"
   "time"
+  "strings"
   "reflect"
   "path/filepath"
   "github.com/fsnotify/fsnotify"
@@ -142,10 +143,11 @@ func (f *fsDetector) NextChange() (fsChange, error) {
   if operation == UnknownCode {
     return fsChange{}, fmt.Errorf("Received unknown operation in fsDetector.NextChange()")
   }
+  fPath := strings.Replace(event.Name, f.keymap[chosen], "", 1)
 
   return fsChange{
     Root: f.keymap[chosen],
-    Filepath: event.Name,
+    Filepath: fPath,
     Operation: operation,
   }, nil
 }
