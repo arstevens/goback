@@ -145,6 +145,7 @@ func (f *fsDetector) NextChange() (fsChange, error) {
   }
   fPath := strings.Replace(event.Name, f.keymap[chosen], "", 1)
   if strings.Contains(fPath, ".part") {
+    fmt.Println("here")
     //File not done being created
     <-time.After(time.Second)
     fPath = strings.Replace(fPath, ".part", "", 1)
