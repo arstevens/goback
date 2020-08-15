@@ -1,8 +1,21 @@
 package reflector
 import (
-  "fmt"
   "testing"
 )
+
+func TestReflector(t *testing.T) {
+  refRoot := "/run/media/aleksandr/AleksPersonal/testref"
+  origRoot := "/home/aleksandr/Workspace/testzone"
+  ref, err := NewPlainReflector(origRoot, refRoot)
+  if err != nil {
+    panic(err)
+  }
+
+  err = ref.Backup()
+  if err != nil {
+    panic(err)
+  }
+}
 /*
 func TestChangeMap(t *testing.T) {
   cm, err := NewSHA1ChangeMap("/home/aleksandr/Workspace/testzone")

@@ -2,23 +2,20 @@ package reflector
 
 import (
   "github.com/arstevens/goback/processor"
-  "strings"
   "fmt"
   "os"
 )
 
-const bufferSize = 4096
-
 type PlainReflector struct {
-  directoryMap processor.ChangeMap
-  reflectingMap processor.ChangeMap
+  originalDirectory string
+  reflectingDirectory string
 }
 
 // Satisfies interactor.reflectorCreator
-func NewPlainReflector(original, reflecting processor.ChangeMap) (processor.Reflector, error) {
+func NewPlainReflector(original, reflecting string) (processor.Reflector, error) {
   pr := PlainReflector{
-    directoryMap: original,
-    reflectingMap: reflecting,
+    originalDirectory: original,
+    reflectingDirectory: reflecting,
   }
   return &pr, nil
 }
@@ -27,112 +24,14 @@ func NewPlainReflector(original, reflecting processor.ChangeMap) (processor.Refl
 reflecting map and the original map and performs the necessary
 operations to turn the reflecting directory into the original directory */
 func (p PlainReflector) Backup() error {
-  fmt.Println("---")
-  fmt.Println(p.reflectingMap.RootName())
-  fmt.Println(p.directoryMap.RootName())
-  fmt.Println("---")
-  differences, err := p.reflectingMap.ChangeLog(p.directoryMap)
+  err := os.RemoveAll(p.reflectingDirectory)
   if err != nil {
-    return fmt.Errorf("Couldn't backup in PR.Backup: %v", err)
+    return fmt.Errorf("Couldn't delete old contents of directory in Backup(): %v", err)
   }
 
-  // Handle deletions
-  deletes := differences[deleteCode]
-  err = handleDeletions(deletes, p.reflectingMap)
+  err = copyDir(p.originalDirectory, p.reflectingDirectory)
   if err != nil {
-    return err
+    return fmt.Errorf("Couldn't copy directory over in Backup(): %v", err)
   }
-  // Handle Creations
-  creates := differences[createCode]
-  err = handleCreations(creates, p.reflectingMap, p.directoryMap)
-  if err != nil {
-    return err
-  }
-  // Handle Updates
-  updates := differences[updateCode]
-  err = handleUpdates(updates, p.reflectingMap.RootDir())
-  if err != nil {
-    return err
-  }
-
-  // Sync change maps
-  p.reflectingMap.Sync(p.directoryMap)
-  return nil
-}
-
-func handleDeletions(deletes []string, reflecting processor.ChangeMap) error {
-  fmt.Println(deletes)
-  for _, deletion := range deletes {
-    removalPath := extendPath(reflecting.RootDir(), deletion)
-    fmt.Println(removalPath)
-    err := os.RemoveAll(removalPath)
-    if err != nil {
-      return fmt.Errorf("Issue removing in handleDeletions(): %v", err)
-    }
-  }
-  return nil
-}
-
-func handleCreations(creates []string, reflecting processor.ChangeMap, original processor.ChangeMap) error {
-  for _, creation := range creates {
-    creationPath := extendPath(reflecting.RootDir(), creation)
-    alternate := swapRootDir(creation, original.RootName())
-    copyPath := extendPath(original.RootDir(), alternate)
-
-    stat, err := os.Lstat(copyPath)
-    if err != nil {
-      return fmt.Errorf("Issue receiving stat in handleCreations(): %v", err)
-    }
-
-    if stat.IsDir() {
-      err = copyDir(copyPath, creationPath)
-      if err != nil {
-        return fmt.Errorf("Issue copying directory in handleCreations(): %v", err)
-      }
-    } else {
-      fmt.Println(copyPath, creationPath)
-      err = copyFile(copyPath, creationPath)
-      if err != nil {
-        fmt.Errorf("Issue copying file in handleCreations(): %v", err)
-      }
-    }
-  }
-
-  return nil
-}
-
-func handleUpdates(updates []string, root string) error {
-  for _, update := range updates {
-    updateParts := strings.Split(update, paramSep)
-    if len(updateParts) < 2 {
-      return fmt.Errorf("Update(%s) too small in handleUpdates(): ", update)
-    }
-
-    oldPath := extendPath(root, updateParts[0])
-    newPath := changePathBase(oldPath, updateParts[1])
-    err := os.Rename(oldPath, newPath)
-    if err != nil {
-      return fmt.Errorf("Failed to rename file in handleUpdates(): %v", err)
-    }
-  }
-
-  return nil
-}
-
-/* Recover() traverses the reflecting directory and copies all of the files
-over to the original directory */
-func (p PlainReflector) Recover() error {
-  reflectingDir := createFilesystemPath(p.reflectingMap, "")
-  originalDir := createFilesystemPath(p.directoryMap, "")
-  err := os.RemoveAll(originalDir)
-  if err != nil {
-    return fmt.Errorf("Couldn't remove original directory in PR.Recover(): %v", err)
-  }
-
-  err = copyDir(reflectingDir, originalDir)
-  if err != nil {
-    return fmt.Errorf("Couldn't copy directory contents in PR.Recover(): %v", err)
-  }
-  p.directoryMap.Sync(p.reflectingMap)
   return nil
 }

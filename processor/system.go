@@ -26,9 +26,20 @@ func MonitorSystem(mdb MetadataDB, c chan<- string) {
       panic(err)
     }
     if !isTimeout {
-      cmd := fsChangeToCommand(change)
-      fmt.Println(cmd)
-      c<-cmd
+      row := mdb.GetRow(change.Root)
+      if !mdb.HasChanged {
+        row.HasChanged = true
+        err = mdb.DeleteRow(change.Root)
+        if err != nil {
+          panic(err)
+        }
+        err = mdb.InsertRow(change.Root, row)
+        if err != nil {
+          panic(err)
+        }
+        backupCmd := string(BackupCommand)+":"+change.Root
+        c<-backupCmd
+      }
     }
 
     // Check for any new backups created
@@ -84,33 +95,4 @@ func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
   }
 
   return newMounts
-}
-
-func fsChangeToCommand(change fsChange) string {
-  command := ""
-  paramSep := ","
-  switch (change.Operation) {
-    case DeleteCode:
-      dir := "false"
-      if change.Dir {
-        dir = dirTrue
-      }
-      command = UpdateCommand+":"+DeleteCommand+paramSep+change.Root+paramSep+
-                change.Filepath+paramSep+dir
-    case CreateCode:
-      dir := "false"
-      if change.Dir {
-        dir = dirTrue
-      }
-
-      command = UpdateCommand+":"+CreateCommand+paramSep+change.Root+paramSep+
-                change.Filepath+paramSep+dir
-    case WriteCode:
-      command = UpdateCommand+":"+WriteCommand+paramSep+change.Root+paramSep+
-                change.Filepath
-    case RenameCode:
-      command = UpdateCommand+":"+RenameCommand+paramSep+change.Root+paramSep+
-                change.Filepath
-  }
-  return command
 }
