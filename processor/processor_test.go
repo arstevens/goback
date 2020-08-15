@@ -64,7 +64,7 @@ func TestProcessor(t *testing.T) {
   resp := <-comChan
   fmt.Println(resp)
 }
-
+/*
 func TestLabel(t *testing.T) {
   resp := labelToMountPoint("AleksPersonal")
   fmt.Println("Label to Mountpoint: "+resp)
