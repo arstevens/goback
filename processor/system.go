@@ -22,14 +22,17 @@ func MonitorSystem(mdb MetadataDB, c chan<- string) {
       panic(err)
     }
     if !isTimeout {
-      row := mdb.GetRow(changeRoot)
-      if !mdb.HasChanged {
+      row, err := mdb.GetRow(changeRoot)
+      if err != nil {
+        panic(err)
+      }
+      if !row.HasChanged {
         row.HasChanged = true
         err = mdb.UpdateRow(row)
         if err != nil {
           panic(err)
         }
-        backupCmd := string(BackupCommand)+":"+change.Root
+        backupCmd := string(BackupCommand)+":"+changeRoot
         c<-backupCmd
       }
     }
@@ -96,7 +99,7 @@ func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
         panic(err)
       }
       newMounts = append(newMounts, key)
-    } else if exists && mountPoint == "" {
+    } else if isMounted && mountPoint == "" {
       row.ReflectionRoot = ""
       err = mdb.UpdateRow(row)
       if err != nil {
