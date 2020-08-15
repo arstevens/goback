@@ -42,7 +42,6 @@ type MDBRow struct {
 
 type MetadataDB interface {
   Keys() []string
-  GetLabel(string) string
   GetRow(string) (MDBRow, error)
   DeleteRow(string) (MDBRow, error)
   InsertRow(string, MDBRow) error

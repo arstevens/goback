@@ -2,11 +2,8 @@ package processor
 import (
   "fmt"
   "testing"
-  /*
-  "time"
   "github.com/arstevens/goback/interactor"
   "github.com/arstevens/goback/reflector"
-  */
   "github.com/arstevens/goback/processor"
 )
 
@@ -40,7 +37,7 @@ func (mdb *TestMDB) Keys() []string {
   }
   return keys
 }
-/*
+
 func TestProcessor(t *testing.T) {
   refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
     "sh1ref":reflector.NewPlainReflector,
@@ -57,11 +54,16 @@ func TestProcessor(t *testing.T) {
 
   comChan := make(chan string)
   updateChan := make(chan string)
-  go CommandProcessor(generator, mdb, comChan, updateChan)
+  go processor.MonitorSystem(mdb, updateChan)
+  go processor.CommandProcessor(generator, mdb, comChan, updateChan)
 
-
+  origRoot := "/home/aleksandr/Workspace/testzone"
+  refRoot := "/run/media/aleksandr/AleksPersonal/testref"
+  bakCmd := NewBackupCommand+":"+origRoot+","+refRoot+","+"sh1ref"+","+"cm1"
+  comChan<-bakCmd
+  resp := <-comChan
+  fmt.Println(resp)
 }
-*/
 
 func TestLabel(t *testing.T) {
   resp := labelToMountPoint("AleksPersonal")
