@@ -149,6 +149,7 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
 
   origSerial := origCm.Serialize()
   refSerial := refCm.Serialize()
+  driveLabel, refBase := pathToLabel(refRoot)
 
   mdbRow := MDBRow{
     OriginalRoot: origRoot,
@@ -156,6 +157,8 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
     OriginalCM: origSerial,
     ReflectionCM: refSerial,
     ReflectionCode: refCode,
+    ReflectionBase: refBase,
+    DriveLabel: driveLabel,
     CMCode: cmCode,
   }
   err = mdb.InsertRow(origRoot, mdbRow)

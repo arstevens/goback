@@ -32,6 +32,7 @@ type Generator interface {
 type MDBRow struct {
   OriginalRoot string
   ReflectionRoot string
+  ReflectionBase string
   OriginalCM string
   ReflectionCM string
   ReflectionCode ReflectorCode

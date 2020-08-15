@@ -2,7 +2,7 @@ package processor
 
 import (
   "time"
-  "strings"
+  "path/filepath"
 )
 
 var PollSpeed time.Duration = time.Second
@@ -13,7 +13,7 @@ const (
 func MonitorSystem(mdb MetadataDB, c chan<- string) {
   NextChangeTimeout = time.Second
   watching := make(map[string]bool)
-  mounted := make(map[string]string)
+  mounted := make(map[string]bool)
   detector := newFsDetector()
   pollForNewBackups(mdb, watching, detector)
 
@@ -56,7 +56,7 @@ func pollForNewBackups(mdb MetadataDB, watching map[string]bool, detector *fsDet
   }
 }
 
-func pollForNewDrives(mdb MetadataDB, mounted map[string]string) []string {
+func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
   newMounts := make([]string, 0)
   for _, key := range mdb.Keys() {
     row, err  := mdb.GetRow(key)
@@ -67,14 +67,14 @@ func pollForNewDrives(mdb MetadataDB, mounted map[string]string) []string {
     mountPoint := labelToMountPoint(row.DriveLabel)
     _, exists := mounted[key]
     if !exists && mountPoint != "" {
-      mounted[key] = row.ReflectionRoot
-      row.ReflectionRoot = strings.Replace(row.ReflectionRoot, DrivePlaceholder, mountPoint, 1)
+      mounted[key] = true
+      refRoot := filepath.Join(mountPoint, row.ReflectionBase)
+      row.ReflectionRoot = refRoot
       mdb.DeleteRow(key)
       mdb.InsertRow(key, row)
-
       newMounts = append(newMounts, key)
     } else if exists && mountPoint == "" {
-      row.ReflectionRoot = mounted[key]
+      row.ReflectionRoot = ""
       mdb.DeleteRow(key)
       mdb.InsertRow(key, row)
       delete(mounted, key)

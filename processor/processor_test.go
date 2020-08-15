@@ -33,10 +33,42 @@ func (mdb *TestMDB) InsertRow(key string, row processor.MDBRow) error {
   return nil
 }
 
+func (mdb *TestMDB) Keys() []string {
+  keys := make([]string, 0, len(mdb.db))
+  for key, _ := range mdb.db {
+    keys = append(keys, key)
+  }
+  return keys
+}
+/*
+func TestProcessor(t *testing.T) {
+  refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
+    "sh1ref":reflector.NewPlainReflector,
+  }
+  cmLoaders := map[processor.ChangeMapCode]interactor.ChangeMapLoader{
+    "cm1":reflector.LoadSHA1ChangeMap,
+  }
+  cmCreators := map[processor.ChangeMapCode]interactor.ChangeMapCreator{
+    "cm1":reflector.NewSHA1ChangeMap,
+  }
+
+  generator := interactor.NewReflectionGenerator(refTypes, cmCreators, cmLoaders)
+  mdb := &TestMDB{db:make(map[string]processor.MDBRow)}
+
+  comChan := make(chan string)
+  updateChan := make(chan string)
+  go CommandProcessor(generator, mdb, comChan, updateChan)
+
+
+}
+*/
+
 func TestLabel(t *testing.T) {
   resp := labelToMountPoint("AleksPersonal")
-  fmt.Println(resp)
-  fmt.Println(len(resp))
+  fmt.Println("Label to Mountpoint: "+resp)
+  resp, extra := pathToLabel("/run/media/aleksandr/AleksPersonal/newdir")
+  fmt.Println("Path to label: "+resp+","+extra)
+
 }
 /*
 
