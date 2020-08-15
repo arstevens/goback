@@ -187,6 +187,7 @@ func updateCommand(params []string, gen Generator, mdb MetadataDB) error {
 
   switch (params[0]) {
   case RenameCommand:
+    return nil
     err = renameUpdateCommand(params[2], params[3], origCm)
     if err != nil {
       return fmt.Errorf("Failed to complete rename in updateCommand(): %v", err)
