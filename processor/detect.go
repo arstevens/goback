@@ -4,7 +4,6 @@ import (
   "os"
   "fmt"
   "time"
-  "strings"
   "reflect"
   "path/filepath"
   "github.com/fsnotify/fsnotify"

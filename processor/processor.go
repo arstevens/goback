@@ -128,7 +128,7 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
     DriveLabel: driveLabel,
     HasChanged: false,
   }
-  err = mdb.InsertRow(origRoot, mdbRow)
+  err = mdb.InsertRow(mdbRow)
   if err != nil {
     fmt.Errorf("Couldnt insert row in newBackupCommand(): %v", err)
   }
