@@ -1,6 +1,7 @@
 package processor
 
 import (
+  "fmt"
   "time"
   "path/filepath"
 )
@@ -26,6 +27,7 @@ func MonitorSystem(mdb MetadataDB, c chan<- string) {
     }
     if !isTimeout {
       cmd := fsChangeToCommand(change)
+      fmt.Println(cmd)
       c<-cmd
     }
 
