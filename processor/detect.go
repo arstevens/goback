@@ -144,9 +144,16 @@ func (f *fsDetector) NextChange() (fsChange, error) {
     return fsChange{}, fmt.Errorf("Received unknown operation in fsDetector.NextChange()")
   }
   fPath := strings.Replace(event.Name, f.keymap[chosen], "", 1)
+  if strings.Contains(fPath, ".part") {
+    fPath = strings.Replace(fPath, ".part", "", 1)
+  }
+  isDir := false
+  if operation != DeleteCode {
+    isDir = isFileDir(event.Name)
+  }
 
   return fsChange{
-    Dir: isFileDir(event.Name),
+    Dir: isDir, 
     Root: f.keymap[chosen],
     Filepath: fPath,
     Operation: operation,
