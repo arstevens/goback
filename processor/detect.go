@@ -101,7 +101,7 @@ func (f *fsDetector) NextChange() (string, error) {
     timeoutCase := reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(time.After(NextChangeTimeout))}
     cases = append(cases, timeoutCase)
   }
-  chosen, value, ok := reflect.Select(cases)
+  chosen, _, ok := reflect.Select(cases)
   if !ok {
     return "", fmt.Errorf("Failed to select value in fsDetector.NextChange()")
   } else if chosen == len(f.cases) {
