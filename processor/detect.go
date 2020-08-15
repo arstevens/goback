@@ -146,6 +146,7 @@ func (f *fsDetector) NextChange() (fsChange, error) {
   fPath := strings.Replace(event.Name, f.keymap[chosen], "", 1)
 
   return fsChange{
+    Dir: isFileDir(event.Name),
     Root: f.keymap[chosen],
     Filepath: fPath,
     Operation: operation,
@@ -157,4 +158,12 @@ func (f *fsDetector) Close() {
     watcher.Close()
   }
   f.closed = true
+}
+
+func isFileDir(name string) bool {
+  fi, err := os.Stat(name)
+  if err != nil {
+    panic(err)
+  }
+  return fi.Mode().IsDir()
 }
