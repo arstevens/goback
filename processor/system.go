@@ -1,15 +1,11 @@
 package processor
 
 import (
-  "fmt"
   "time"
   "path/filepath"
 )
 
 var PollSpeed time.Duration = time.Second
-const (
-  DrivePlaceholder = "[DRIVE]"
-)
 
 func MonitorSystem(mdb MetadataDB, c chan<- string) {
   NextChangeTimeout = time.Second
@@ -20,20 +16,16 @@ func MonitorSystem(mdb MetadataDB, c chan<- string) {
 
   for {
     // Check for any changes to backup points
-    change, err := detector.NextChange()
+    changeRoot, err := detector.NextChange()
     _, isTimeout := err.(*TimeoutErr)
     if !isTimeout && err != nil {
       panic(err)
     }
     if !isTimeout {
-      row := mdb.GetRow(change.Root)
+      row := mdb.GetRow(changeRoot)
       if !mdb.HasChanged {
         row.HasChanged = true
-        err = mdb.DeleteRow(change.Root)
-        if err != nil {
-          panic(err)
-        }
-        err = mdb.InsertRow(change.Root, row)
+        err = mdb.UpdateRow(row)
         if err != nil {
           panic(err)
         }
@@ -58,7 +50,8 @@ func MonitorSystem(mdb MetadataDB, c chan<- string) {
 }
 
 func pollForNewBackups(mdb MetadataDB, watching map[string]bool, detector *fsDetector) {
-  for _, key := range mdb.Keys() {
+  keys := mdb.Keys()
+  for _, key := range keys {
     if watching[key] == false {
       err := detector.Watch(key)
       if err != nil {
@@ -67,6 +60,21 @@ func pollForNewBackups(mdb MetadataDB, watching map[string]bool, detector *fsDet
       watching[key] = true
     }
   }
+
+  for key, watched := range watching {
+    if watched && !contains(keys, key) {
+      watching[key] = false
+    }
+  }
+}
+
+func contains(slice []string, key string) bool {
+  for _, val := range slice {
+    if val == key {
+      return true
+    }
+  }
+  return false
 }
 
 func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
@@ -78,18 +86,22 @@ func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
     }
 
     mountPoint := labelToMountPoint(row.DriveLabel)
-    _, exists := mounted[key]
-    if !exists && mountPoint != "" {
+    _, isMounted := mounted[key]
+    if !isMounted && mountPoint != "" {
       mounted[key] = true
       refRoot := filepath.Join(mountPoint, row.ReflectionBase)
       row.ReflectionRoot = refRoot
-      mdb.DeleteRow(key)
-      mdb.InsertRow(key, row)
+      err = mdb.UpdateRow(row)
+      if err != nil {
+        panic(err)
+      }
       newMounts = append(newMounts, key)
     } else if exists && mountPoint == "" {
       row.ReflectionRoot = ""
-      mdb.DeleteRow(key)
-      mdb.InsertRow(key, row)
+      err = mdb.UpdateRow(row)
+      if err != nil {
+        panic(err)
+      }
       delete(mounted, key)
     }
   }

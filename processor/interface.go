@@ -29,5 +29,6 @@ type MetadataDB interface {
   Keys() []string
   GetRow(string) (MDBRow, error)
   DeleteRow(string) (MDBRow, error)
-  InsertRow(string, MDBRow) error
+  InsertRow(MDBRow) error
+  UpdateRow(MDBRow) error
 }

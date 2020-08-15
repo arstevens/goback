@@ -17,14 +17,6 @@ func (t *TimeoutErr) Error() string {
 }
 var NextChangeTimeout time.Duration = 0
 
-const (
-  DeleteCode ChangeCode = iota
-  CreateCode
-  RenameCode
-  WriteCode
-  UnknownCode = -1
-)
-
 type fsDetector struct {
   watchers []*fsnotify.Watcher
   cases []reflect.SelectCase
@@ -100,16 +92,9 @@ func (f *fsDetector) Unwatch(root string) error {
   return nil
 }
 
-type fsChange struct {
-  Dir bool
-  Root string
-  Filepath string
-  Operation ChangeCode
-}
-
-func (f *fsDetector) NextChange() (fsChange, error) {
+func (f *fsDetector) NextChange() (string, error) {
   if f.closed {
-    return fsChange{}, fmt.Errorf("fsDetector is closed")
+    return "", fmt.Errorf("fsDetector is closed")
   }
 
   cases := f.cases
@@ -119,49 +104,11 @@ func (f *fsDetector) NextChange() (fsChange, error) {
   }
   chosen, value, ok := reflect.Select(cases)
   if !ok {
-    return fsChange{}, fmt.Errorf("Failed to select value in fsDetector.NextChange()")
+    return "", fmt.Errorf("Failed to select value in fsDetector.NextChange()")
   } else if chosen == len(f.cases) {
-    return fsChange{}, &TimeoutErr{}
+    return "", &TimeoutErr{}
   }
-  event := value.Interface().(fsnotify.Event)
-  var operation ChangeCode
-
-  switch (event.Op) {
-    case fsnotify.Remove:
-      operation = DeleteCode
-    case fsnotify.Create:
-      operation = CreateCode
-    case fsnotify.Rename:
-      operation = RenameCode
-    case fsnotify.Write:
-      operation = WriteCode
-    default:
-      operation = UnknownCode
-  }
-
-  //Chmod may invoke this
-  if operation == UnknownCode {
-    return fsChange{}, fmt.Errorf("Received unknown operation in fsDetector.NextChange()")
-  }
-  fPath := strings.Replace(event.Name, f.keymap[chosen], "", 1)
-  if strings.Contains(fPath, ".part") {
-    fmt.Println("here")
-    //File not done being created
-    <-time.After(time.Second)
-    fPath = strings.Replace(fPath, ".part", "", 1)
-  }
-  isDir := false
-  if operation != DeleteCode {
-    path := filepath.Join(f.keymap[chosen], fPath)
-    isDir = isFileDir(path)
-  }
-
-  return fsChange{
-    Dir: isDir,
-    Root: f.keymap[chosen],
-    Filepath: fPath,
-    Operation: operation,
-  }, nil
+  return f.keymap[chosen], nil
 }
 
 func (f *fsDetector) Close() {
@@ -169,12 +116,4 @@ func (f *fsDetector) Close() {
     watcher.Close()
   }
   f.closed = true
-}
-
-func isFileDir(name string) bool {
-  fi, err := os.Stat(name)
-  if err != nil {
-    panic(err)
-  }
-  return fi.Mode().IsDir()
 }
