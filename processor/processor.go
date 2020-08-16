@@ -11,6 +11,7 @@ type CommandCode string
 const (
   BackupCommand CommandCode = "bak"
   NewBackupCommand = "n_bak"
+  UnbackupCommand = "u_bak"
 )
 
 func CommandProcessor(gen Generator, mdb MetadataDB, comChan chan string, updateChan <-chan string) {
@@ -52,6 +53,8 @@ func executeCommand(cmd string, gen Generator, mdb MetadataDB) error {
       err = backupCommand(params, gen, mdb)
     case NewBackupCommand:
       err = newBackupCommand(params, gen, mdb)
+    case UnbackupCommand:
+      err = unbackupCommand(params, gen, mdb)
     default:
       return fmt.Errorf("Unknown command(%s) in executeCommand()", cmd)
   }
@@ -129,5 +132,17 @@ func newBackupCommand(params []string, gen Generator, mdb MetadataDB) error {
     fmt.Errorf("Couldnt insert row in newBackupCommand(): %v", err)
   }
 
+  return nil
+}
+
+func unbackupCommand(params []string, gen Generator, mdb MetadataDB) error {
+  if len(params) < 1 {
+    return fmt.Errorf("Not enough parameters in unbackupCommand()")
+  }
+
+  origRoot := params[0]
+  if _, err := mdb.DeleteRow(origRoot); err != nil {
+    return fmt.Errorf("Failed to remove %s for database in unbackupCommand(): %v", origRoot, err)
+  }
   return nil
 }

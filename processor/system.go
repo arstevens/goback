@@ -10,7 +10,7 @@ var PollSpeed time.Duration = time.Second
 
 func MonitorSystem(mdb MetadataDB, c chan<- string) {
   defer close(c)
-  
+
   NextChangeTimeout = time.Second
   watching := make(map[string]bool)
   mounted := make(map[string]bool)
@@ -71,6 +71,11 @@ func pollForNewBackups(mdb MetadataDB, watching map[string]bool, detector *fsDet
 
   for key, watched := range watching {
     if watched && !contains(keys, key) {
+      err := detector.Unwatch(key)
+      if err != nil {
+        log.Printf("Failed to unwatch %s in pollForNewBackups(): %v", key, err)
+        continue
+      }
       watching[key] = false
     }
   }
