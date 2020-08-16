@@ -47,7 +47,7 @@ func (mdb *TestMDB) Keys() []string {
 func TestMonitorSystem(t *testing.T) {
 
 }
-
+/*
 func TestProcessor(t *testing.T) {
   refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
     "sh1ref":reflector.NewPlainReflector,

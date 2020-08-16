@@ -20,9 +20,9 @@ type MDBRow struct {
   OriginalRoot string
   ReflectionRoot string
   ReflectionBase string
-  HasChanged bool
   ReflectionCode ReflectorCode
   DriveLabel string
+  HasChanged bool
 }
 
 type MetadataDB interface {

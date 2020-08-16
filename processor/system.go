@@ -9,6 +9,8 @@ import (
 var PollSpeed time.Duration = time.Second
 
 func MonitorSystem(mdb MetadataDB, c chan<- string) {
+  defer close(c)
+  
   NextChangeTimeout = time.Second
   watching := make(map[string]bool)
   mounted := make(map[string]bool)
