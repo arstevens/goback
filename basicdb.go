@@ -3,9 +3,11 @@ package main
 import (
   "github.com/arstevens/goback/processor"
   "strconv"
+  "strings"
   "io/ioutil"
   "sync"
   "fmt"
+  "log"
 )
 
 const (
@@ -19,11 +21,17 @@ type FileMetadataDB struct {
 }
 
 func NewFileMetadataDB(dbLoc string) *FileMetadataDB {
-  return &FileMetadataDB{
+  fdb :=  &FileMetadataDB{
     rowsByKey: make(map[string]processor.MDBRow),
     dbPath: dbLoc,
     mutex: &sync.Mutex{},
   }
+
+  err := fdb.deserializeDB()
+  if err != nil {
+    log.Printf("Failed to deserialize file db in NewFileMetadataDB(): %v", err)
+  }
+  return fdb
 }
 
 func (f *FileMetadataDB) GetRow(key string) (processor.MDBRow, error) {
@@ -113,4 +121,33 @@ func (f *FileMetadataDB) serializeDB() []byte {
     serial += serialRow+"\n"
   }
   return []byte(serial)
+}
+
+func (f *FileMetadataDB) deserializeDB() error {
+  serial, err := ioutil.ReadFile(f.dbPath)
+  if err != nil {
+    return fmt.Errorf("Failed to read from %s in FileMetadataDB.deserializeDB(): %v", f.dbPath, err)
+  }
+
+  rawRows := strings.Split(string(serial), "\n")
+  for _, rawRow := range rawRows {
+    entries := strings.Split(rawRow, dbSeparator)
+    if len(entries) < 5 {
+      return fmt.Errorf("Not enough entries when reading row in deserializeDB()")
+    }
+    hasChanged, err := strconv.ParseBool(entries[5])
+    if err != nil {
+      return fmt.Errorf("Failed to parse bool field in deserializeDB(): %v", err)
+    }
+
+    f.rowsByKey[entries[0]] = processor.MDBRow{
+      OriginalRoot: entries[0],
+      ReflectionRoot: entries[1],
+      ReflectionBase: entries[2],
+      ReflectionCode: processor.ReflectorCode(entries[3]),
+      DriveLabel: entries[4],
+      HasChanged: hasChanged,
+    }
+  }
+  return nil
 }
