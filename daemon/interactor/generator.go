@@ -1,7 +1,7 @@
 package interactor
 
 import (
-  "github.com/arstevens/goback/processor"
+  "github.com/arstevens/goback/daemon/processor"
   "fmt"
 )
 

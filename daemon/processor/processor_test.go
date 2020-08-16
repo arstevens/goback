@@ -3,9 +3,9 @@ import (
   "fmt"
   "time"
   "testing"
-  "github.com/arstevens/goback/interactor"
-  "github.com/arstevens/goback/reflector"
-  "github.com/arstevens/goback/processor"
+  "github.com/arstevens/goback/daemon/interactor"
+  "github.com/arstevens/goback/daemon/reflector"
+  "github.com/arstevens/goback/daemon/processor"
 )
 
 type TestMDB struct {
