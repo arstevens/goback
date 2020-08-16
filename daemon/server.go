@@ -2,6 +2,7 @@ package main
 
 import (
   "strconv"
+  "strings"
   "bufio"
   "fmt"
   "log"
@@ -30,7 +31,7 @@ func ListenAndRelay(port int, ch chan string) {
       log.Printf("Failed to accept connection in listenAndRelay(): %v\n", err)
       continue
     }
-
+    fmt.Println("new connection")
     err = relayMsgAndResponse(conn, ch)
     if err != nil {
       log.Printf("Failed to relay in listenAndRelay(): %v\n", err)
@@ -39,20 +40,19 @@ func ListenAndRelay(port int, ch chan string) {
 }
 
 func relayMsgAndResponse(conn net.Conn, ch chan string) error {
-    defer conn.Close()
-    rConn := bufio.NewReader(conn)
-    msg, err := rConn.ReadString(byte('\n'))
+    msg, err := bufio.NewReader(conn).ReadString('\n')
     if err != nil && err != io.EOF {
       return fmt.Errorf("Failed to read msg from client in relayMsgAndResponse(): %v\n", err)
     }
+    fmt.Printf("Message received: %s\n", msg)
+    msg = strings.Trim(msg, "\n")
 
     // Process message and send response back
     ch<-msg
     resp := <-ch
+    fmt.Printf("Message response: %s\n", resp)
     resp += "\n"
-    wConn := bufio.NewWriter(conn)
-    _, err = wConn.WriteString(resp)
-    if err != nil {
+    if _, err = conn.Write([]byte(resp)); err != nil {
       return fmt.Errorf("Failed to write msg to client in relayMsgAndResponse(): %v\n", err)
     }
     return nil

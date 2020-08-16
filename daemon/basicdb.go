@@ -82,7 +82,7 @@ func (f *FileMetadataDB) UpdateRow(row processor.MDBRow) error {
   defer f.mutex.Unlock()
 
   _, ok := f.rowsByKey[row.OriginalRoot]
-  if ok {
+  if !ok {
     return fmt.Errorf("Couldn't update row with key %s. Does not exist in FileMetadataDB.UpdateRow()", row.OriginalRoot)
   }
 
