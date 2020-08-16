@@ -9,6 +9,7 @@ import (
   "fmt"
   "net"
   "log"
+  "os"
 )
 
 var GobackPort int = 25000
@@ -19,18 +20,19 @@ func main() {
   remove := flag.Bool("r", false, "Stop backing up provided directory")
 
   flag.Parse()
+  var resp string
   if *remove {
     rmCmd := processor.UnbackupCommand+":"+*originalDir
-    fmt.Printf("Sending message %s\n", rmCmd)
-    resp := executeCommand(rmCmd)
-    fmt.Println(resp)
+    resp = executeCommand(rmCmd)
   } else {
     bkCmd := processor.NewBackupCommand+":"+*originalDir+","+*reflectDir+","+"pref"
-    fmt.Printf("Sending message %s\n", bkCmd)
-    resp := executeCommand(bkCmd)
-    fmt.Println(resp)
+    resp = executeCommand(bkCmd)
   }
 
+  if resp == processor.SuccessCode {
+    os.Exit(0)
+  }
+  os.Exit(1)
 }
 
 func executeCommand(cmd string) string {
