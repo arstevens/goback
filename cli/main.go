@@ -6,7 +6,6 @@ import (
   "strings"
   "bufio"
   "flag"
-  "fmt"
   "net"
   "log"
   "os"
