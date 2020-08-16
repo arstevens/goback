@@ -1,5 +1,5 @@
 # Goback
-A backup and program written in go that will automatically backup up a folder
+A backup program written in go that will automatically backup up a folder
 whenever the backup drive has been mounted
 
 ## Installation
