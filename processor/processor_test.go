@@ -26,8 +26,13 @@ func (mdb *TestMDB) DeleteRow(key string) (processor.MDBRow, error) {
   return row, nil
 }
 
-func (mdb *TestMDB) InsertRow(key string, row processor.MDBRow) error {
-  mdb.db[key] = row
+func (mdb *TestMDB) InsertRow(row processor.MDBRow) error {
+  mdb.db[row.OriginalRoot] = row
+  return nil
+}
+
+func (mdb *TestMDB) UpdateRow(row processor.MDBRow) error {
+  mdb.db[row.OriginalRoot] = row
   return nil
 }
 
@@ -39,18 +44,16 @@ func (mdb *TestMDB) Keys() []string {
   return keys
 }
 
+func TestMonitorSystem(t *testing.T) {
+
+}
+
 func TestProcessor(t *testing.T) {
   refTypes := map[processor.ReflectorCode]interactor.ReflectorCreator{
     "sh1ref":reflector.NewPlainReflector,
   }
-  cmLoaders := map[processor.ChangeMapCode]interactor.ChangeMapLoader{
-    "cm1":reflector.LoadSHA1ChangeMap,
-  }
-  cmCreators := map[processor.ChangeMapCode]interactor.ChangeMapCreator{
-    "cm1":reflector.NewSHA1ChangeMap,
-  }
 
-  generator := interactor.NewReflectionGenerator(refTypes, cmCreators, cmLoaders)
+  generator := interactor.NewReflectionGenerator(refTypes)
   mdb := &TestMDB{db:make(map[string]processor.MDBRow)}
 
   comChan := make(chan string)
@@ -64,7 +67,12 @@ func TestProcessor(t *testing.T) {
   comChan<-bakCmd
   resp := <-comChan
   fmt.Println(resp)
-  <-time.After(time.Minute)
+  row, _ := mdb.GetRow(origRoot)
+  fmt.Println(row)
+  <-time.After(time.Second*60)
+  row, _ = mdb.GetRow(origRoot)
+  fmt.Println(row)
+
 }
 /*
 func TestLabel(t *testing.T) {

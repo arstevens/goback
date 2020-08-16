@@ -1,6 +1,7 @@
 package processor
 
 import (
+  "log"
   "time"
   "path/filepath"
 )
@@ -18,22 +19,23 @@ func MonitorSystem(mdb MetadataDB, c chan<- string) {
     // Check for any changes to backup points
     changeRoot, err := detector.NextChange()
     _, isTimeout := err.(*TimeoutErr)
-    if !isTimeout && err != nil {
-      panic(err)
-    }
     if !isTimeout {
-      row, err := mdb.GetRow(changeRoot)
       if err != nil {
-        panic(err)
-      }
-      if !row.HasChanged {
-        row.HasChanged = true
-        err = mdb.UpdateRow(row)
+        log.Printf("Failed to receive next change in MonitorSystem(): %v", err)
+      } else {
+        row, err := mdb.GetRow(changeRoot)
         if err != nil {
-          panic(err)
+          log.Printf("Failed to retrieve row in MonitorSystem(): %v", err)
+        } else if !row.HasChanged {
+          row.HasChanged = true
+          err = mdb.UpdateRow(row)
+          if err != nil {
+            log.Printf("Failed to update row in MonitorSystem(): %v", err)
+          } else {
+            backupCmd := string(BackupCommand)+":"+changeRoot
+            c<-backupCmd
+          }
         }
-        backupCmd := string(BackupCommand)+":"+changeRoot
-        c<-backupCmd
       }
     }
 
@@ -58,7 +60,8 @@ func pollForNewBackups(mdb MetadataDB, watching map[string]bool, detector *fsDet
     if watching[key] == false {
       err := detector.Watch(key)
       if err != nil {
-        panic(err)
+        log.Printf("Failed to set watch on %s in pollForNewBackups(): %v", key, err)
+        continue
       }
       watching[key] = true
     }
@@ -85,7 +88,8 @@ func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
   for _, key := range mdb.Keys() {
     row, err  := mdb.GetRow(key)
     if err != nil {
-      panic(err)
+      log.Printf("Failed to get row in pollForNewDrives(): %v", err)
+      return []string{}
     }
 
     mountPoint := labelToMountPoint(row.DriveLabel)
@@ -96,14 +100,16 @@ func pollForNewDrives(mdb MetadataDB, mounted map[string]bool) []string {
       row.ReflectionRoot = refRoot
       err = mdb.UpdateRow(row)
       if err != nil {
-        panic(err)
+        log.Printf("Failed to update row for %s in pollForNewDrives(): %v", key, err)
+        continue
       }
       newMounts = append(newMounts, key)
     } else if isMounted && mountPoint == "" {
       row.ReflectionRoot = ""
       err = mdb.UpdateRow(row)
       if err != nil {
-        panic(err)
+        log.Printf("Failed to update row for %s in pollForNewDrives(): %v", key, err)
+        continue
       }
       delete(mounted, key)
     }
