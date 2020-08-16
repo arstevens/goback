@@ -1,9 +1,9 @@
 package main
 
 import (
-  "github.com/arstevens/goback/reflector"
-  "github.com/arstevens/goback/processor"
-  "github.com/arstevens/goback/interactor"
+  "github.com/arstevens/goback/daemon/reflector"
+  "github.com/arstevens/goback/daemon/processor"
+  "github.com/arstevens/goback/daemon/interactor"
   "path/filepath"
   "os/user"
   "log"

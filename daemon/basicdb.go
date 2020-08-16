@@ -8,6 +8,7 @@ import (
   "sync"
   "fmt"
   "log"
+  "os"
 )
 
 const (
@@ -124,6 +125,13 @@ func (f *FileMetadataDB) serializeDB() []byte {
 }
 
 func (f *FileMetadataDB) deserializeDB() error {
+  if _, err := os.Stat(f.dbPath); os.IsNotExist(err) {
+    f, err := os.Create(f.dbPath)
+    if err == nil {
+      f.Close()
+    }
+    return nil
+  }
   serial, err := ioutil.ReadFile(f.dbPath)
   if err != nil {
     return fmt.Errorf("Failed to read from %s in FileMetadataDB.deserializeDB(): %v", f.dbPath, err)
