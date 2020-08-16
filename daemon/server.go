@@ -49,6 +49,7 @@ func relayMsgAndResponse(conn net.Conn, ch chan string) error {
     // Process message and send response back
     ch<-msg
     resp := <-ch
+    resp += "\n"
     wConn := bufio.NewWriter(conn)
     _, err = wConn.WriteString(resp)
     if err != nil {
